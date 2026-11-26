@@ -80,6 +80,9 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             rpm dpkg-dev desktop-file-utils python3
 
+      - name: Allow building without distro BuildRequires metadata
+        run: echo "RPM_BUILD_NODEPS=1" >> "$GITHUB_ENV"
+
       - name: Build ${{ matrix.kind }} package
         run: |
           if [ "${{ matrix.kind }}" = "rpm" ]; then

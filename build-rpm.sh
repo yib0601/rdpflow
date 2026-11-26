@@ -13,7 +13,12 @@ project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$project_dir"
 
 version="${VERSION:-$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import rdpflow; print(rdpflow.__version__)' "$project_dir")}"
-release="${RELEASE:-$(rpmspec -q --qf '%{RELEASE}' rdpflow.spec)}"
+# Release number only ("1"), with the spec's %{?dist} macro stripped.
+spec_release="$(awk '/^Release:/ {print $2; exit}' rdpflow.spec)"
+spec_release="${spec_release%%\%\{*}"
+release="${RELEASE:-$spec_release}"
+# On a Fedora host rpmbuild appends its own %{?dist} (e.g. ".fc45"). DIST_TAG
+# overrides it so CI emits a predictable, distro-neutral file name.
 dist_tag="${DIST_TAG:-}"
 dist_dir="$project_dir/dist"
 topdir="$dist_dir/rpmbuild"
@@ -52,14 +57,26 @@ tar --sort=name \
     -czf "$sources_dir/$archive" \
     .
 
-rpmbuild -bb "$project_dir/rdpflow.spec" \
-    --define "_topdir $topdir" \
-    --define "_sourcedir $sources_dir" \
-    --define "_rpmdir $dist_dir/rpm" \
-    --define "_srcrpmdir $dist_dir/rpm" \
-    --define "_build_id_links none" \
-    --define "version $version" \
-    --define "dist %{nil}"
+rpmbuild_args=(
+    -bb "$project_dir/rdpflow.spec"
+    --define "_topdir $topdir"
+    --define "_sourcedir $sources_dir"
+    --define "_rpmdir $dist_dir/rpm"
+    --define "_srcrpmdir $dist_dir/rpm"
+    --define "_build_id_links none"
+    --define "version $version"
+)
+if [ -n "$dist_tag" ]; then
+    rpmbuild_args+=(--define "dist .$dist_tag")
+else
+    # %{?dist} expands to %{nil}; an empty --define is a hard rpm error.
+    rpmbuild_args+=(--define "dist %{nil}")
+fi
+if [ -n "${RPM_BUILD_NODEPS:-}" ]; then
+    rpmbuild_args+=(--nodeps)
+fi
+
+rpmbuild "${rpmbuild_args[@]}"
 
 # rpmbuild writes dist/<arch>/<name>-<version>-<release>%{?dist}.rpm
 built_rpm_path="$(find "$dist_dir/rpm" -type f -name 'rdpflow-*.rpm' ! -name '*.src.rpm' | head -n 1)"
