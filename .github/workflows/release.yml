@@ -119,6 +119,9 @@ jobs:
       - name: Build artifact
         env:
           VERSION: ${{ needs.verify.outputs.version }}
+          # RPM builds on a Debian runner: BuildRequires names Fedora-only
+          # packages, and the needed tools are installed above.
+          RPM_BUILD_NODEPS: "1"
         run: ${{ matrix.script }}
 
       - name: Checksum
