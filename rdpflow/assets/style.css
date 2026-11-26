@@ -1,0 +1,97 @@
+.hero-card {
+  background-image: linear-gradient(135deg, alpha(@accent_bg_color, 0.92), alpha(@accent_bg_color, 0.38));
+  border: 1px solid alpha(@accent_color, 0.22);
+  border-radius: 28px;
+  padding: 30px;
+}
+
+.dashboard-title {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+}
+
+.section-title {
+  font-size: 19px;
+  font-weight: 750;
+}
+
+.muted {
+  color: alpha(@window_fg_color, 0.62);
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: alpha(@window_fg_color, 0.58);
+}
+
+.surface-card {
+  background: alpha(@window_fg_color, 0.045);
+  border: 1px solid alpha(@window_fg_color, 0.075);
+  border-radius: 20px;
+  padding: 18px;
+}
+
+.summary-flow flowboxchild {
+  padding: 0;
+  border-radius: 20px;
+}
+
+.connection-card {
+  background: alpha(@window_fg_color, 0.05);
+  border: 1px solid alpha(@window_fg_color, 0.08);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.connection-card:hover {
+  background: alpha(@accent_bg_color, 0.55);
+  border-color: alpha(@accent_color, 0.35);
+}
+
+.brand-mark {
+  background: alpha(@accent_bg_color, 0.85);
+  border-radius: 14px;
+  padding: 9px;
+}
+
+.status-pill {
+  background: alpha(@window_fg_color, 0.07);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-running {
+  color: @success_color;
+  background: alpha(@success_color, 0.12);
+}
+
+.status-failed {
+  color: @error_color;
+  background: alpha(@error_color, 0.12);
+}
+
+.session-log {
+  font-family: monospace;
+  font-size: 12px;
+  background: alpha(@window_fg_color, 0.045);
+  border: 1px solid alpha(@window_fg_color, 0.06);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.connection-row {
+  border-radius: 14px;
+}
+
+.connection-row:selected {
+  background: alpha(@accent_bg_color, 0.72);
+}
+
+.error {
+  color: @error_color;
+}

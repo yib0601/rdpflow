@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=RDPFlow
+Comment=Modern Linux RDP connection workspace
+Exec=/home/yibin/Code/rdpflow/run-rdpflow.sh
+Icon=/home/yibin/Code/rdpflow/rdpflow/assets/rdpflow.svg
+Terminal=false
+Categories=Network;RemoteAccess;
+Keywords=RDP;RemoteDesktop;Windows;FreeRDP;
+StartupWMClass=rdpflow

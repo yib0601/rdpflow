@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            rpm dpkg-dev \
+            python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-secret-1 \
+            libgirepository1.0-dev libcairo2-dev pkg-config \
+            desktop-file-utils
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build
+
+      - name: Run unit tests
+        run: |
+          python -m unittest discover -s tests -t . -v
+
+      - name: Validate spec and desktop entry
+        run: |
+          rpmspec -P rdpflow.spec > /dev/null
+          desktop-file-validate rdpflow.desktop || true
+
+      - name: Build sdist and wheel
+        if: matrix.python-version == '3.13'
+        run: python -m build
+
+      - name: Upload Python artifacts
+        if: matrix.python-version == '3.13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: dist/*
+          if-no-files-found: error
+
+  package:
+    name: Package (${{ matrix.kind }})
+    runs-on: ubuntu-24.04
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: [rpm, deb]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            rpm dpkg-dev desktop-file-utils python3
+
+      - name: Build ${{ matrix.kind }} package
+        run: |
+          if [ "${{ matrix.kind }}" = "rpm" ]; then
+            DIST_TAG="el9" bash build-rpm.sh
+          else
+            bash build-deb.sh
+          fi
+
+      - name: Inspect package
+        run: |
+          if [ "${{ matrix.kind }}" = "rpm" ]; then
+            rpm -qpi dist/*.rpm
+            rpm -qpl dist/*.rpm
+          else
+            dpkg-deb --info dist/*.deb
+            dpkg-deb --contents dist/*.deb
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.kind }}
+          path: |
+            dist/*.${{ matrix.kind }}
+            dist/*.${{ matrix.kind }}.sha256
+          if-no-files-found: error

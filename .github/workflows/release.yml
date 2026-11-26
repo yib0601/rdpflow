@@ -1,0 +1,214 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)publish, e.g. v0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DIST_TAG: el9
+
+jobs:
+  verify:
+    name: Verify tag matches package version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - id: version
+        name: Read and check version
+        run: |
+          set -euo pipefail
+          version="$(python -c 'import rdpflow; print(rdpflow.__version__)')"
+          spec_version="$(rpmspec -q --qf '%{VERSION}' rdpflow.spec 2>/dev/null || \
+                          grep -m1 '^Version:' rdpflow.spec | awk '{print $2}')"
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "pyproject/package version: $version"
+          echo "spec version:              $spec_version"
+          echo "git tag:                   $tag"
+          if [ "$version" != "${tag#v}" ]; then
+            echo "::error::rdpflow.__version__ ($version) does not match tag ($tag)"
+            exit 1
+          fi
+          if [ "$version" != "$spec_version" ]; then
+            echo "::error::rdpflow.spec Version ($spec_version) does not match package version ($version)"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  test:
+    name: Test suite
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            rpm dpkg-dev python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-secret-1 \
+            libgirepository1.0-dev libcairo2-dev pkg-config
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -t . -v
+
+  build:
+    name: Build ${{ matrix.kind }}
+    runs-on: ubuntu-24.04
+    needs: [verify, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - kind: rpm
+            script: bash build-rpm.sh
+            glob: dist/*.rpm
+          - kind: deb
+            script: bash build-deb.sh
+            glob: dist/*.deb
+          - kind: python
+            script: |
+              python -m pip install --upgrade pip build
+              python -m build
+            glob: dist/*.whl dist/*.tar.gz
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            rpm dpkg-dev desktop-file-utils python3
+
+      - name: Build artifact
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: ${{ matrix.script }}
+
+      - name: Checksum
+        run: |
+          cd dist
+          sha256sum $(ls *.rpm *.deb *.whl *.tar.gz 2>/dev/null || true) > SHA256SUMS.${{ matrix.kind }} || true
+          cat SHA256SUMS.${{ matrix.kind }} || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.kind }}
+          path: |
+            ${{ matrix.glob }}
+            dist/SHA256SUMS.${{ matrix.kind }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    runs-on: ubuntu-24.04
+    needs: [verify, build]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Assemble release assets
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          find artifacts -type f \( \
+                -name '*.rpm' -o -name '*.deb' -o -name '*.whl' \
+                -o -name '*.tar.gz' -o -name '*.sha256' \) \
+              -exec cp -v {} release/ \;
+          cd release
+          rm -f SHA256SUMS
+          { for f in *; do [ "$f" = SHA256SUMS ] || sha256sum "$f"; done; } > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          set -euo pipefail
+          version="${{ needs.verify.outputs.version }}"
+          awk -v ver="$version" '
+            $0 ~ "^## \\[" ver "\\]" { flag=1; next }
+            flag && /^## \[/ { exit }
+            flag { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "RDPFlow $version" > notes.md
+          fi
+          {
+            echo "## 安装"
+            echo
+            echo '**Fedora / RHEL:**'
+            echo '```bash'
+            echo "sudo dnf install ./rdpflow-${version}.el9.noarch.rpm"
+            echo '```'
+            echo
+            echo '**Debian / Ubuntu:**'
+            echo '```bash'
+            echo "sudo apt install ./rdpflow_${version}-1_all.deb"
+            echo '```'
+            echo
+            echo "全部产物校验：\`sha256sum -c SHA256SUMS\`"
+            echo
+            echo "---"
+            echo
+          } > header.md
+          cat header.md notes.md > release-notes.md
+          cat release-notes.md
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.verify.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/* --clobber
+            gh release edit "$TAG" --notes-file release-notes.md
+          else
+            gh release create "$TAG" release/* \
+              --title "RDPFlow ${TAG}" \
+              --notes-file release-notes.md \
+              --verify-tag
+          fi
