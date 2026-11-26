@@ -186,7 +186,7 @@ jobs:
             echo
             echo '**Fedora / RHEL:**'
             echo '```bash'
-            echo "sudo dnf install ./rdpflow-${version}.el9.noarch.rpm"
+            echo "sudo dnf install ./rdpflow-${version}-1.el9.noarch.rpm"
             echo '```'
             echo
             echo '**Debian / Ubuntu:**'
