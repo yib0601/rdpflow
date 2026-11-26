@@ -99,7 +99,9 @@ jobs:
             script: |
               python -m pip install --upgrade pip build
               python -m build
-            glob: dist/*.whl dist/*.tar.gz
+            glob: |
+              dist/*.whl
+              dist/*.tar.gz
     steps:
       - uses: actions/checkout@v4
         with:
