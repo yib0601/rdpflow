@@ -201,8 +201,11 @@ jobs:
           # 末尾的 / 只匹配目录：dist/ 里还有 rdpflow-<v>-linux-<arch>.tar.gz
           # 和它的 .sha256，不带 / 时 cd 会收到三个参数并报「参数太多」（实测）。
           cd rdpflow-*-linux-*/
-          ./self-check.sh
-          ./bin/rdpflow --version
+          # 必须指定系统解释器：actions/setup-python 装的 3.13 排在 PATH 最前，
+          # 它没有 PyGObject，直接用就报 No module named 'gi'（实测）。
+          # 便携包本来也不自带 GTK，靠的就是宿主的 python3-gi。
+          RDPFLOW_PYTHON=/usr/bin/python3 ./self-check.sh
+          RDPFLOW_PYTHON=/usr/bin/python3 ./bin/rdpflow --version
 
       - name: Self-check the wheel in a clean venv
         if: matrix.kind == 'python'
@@ -281,6 +284,22 @@ jobs:
             https://flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y --noninteractive flathub \
             org.gnome.Platform//51 org.gnome.Sdk//51
+
+      # appstreamcli compose 在导出元数据时要栅格化图标，它用 bubblewrap 起 glycin
+      # 图像加载器。ubuntu-24.04 默认 apparmor_restrict_unprivileged_userns=1，
+      # bwrap 起不来，compose 就报 file-read-error + filters-but-no-output（本地用
+      # 一个假的 bwrap 就能复现出这两条一模一样的错误）。arm64 runner 的镜像没开
+      # 这条限制，所以只有 x86_64 红——不是架构问题。
+      - name: Allow unprivileged user namespaces for bubblewrap
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 \
+            || echo "没有这条 sysctl（内核未启用该限制），跳过"
+          # 冒烟必须让 bwrap 真的跑完一条命令才叫通过：--unshare-all + / 只读绑定
+          # 在任何发行版上都成立，别写 --ro-bind /usr 之类的局部绑定（路径不齐时
+          # bwrap 会以 execvp 失败退出，而那个失败与命名空间无关）。
+          bwrap --unshare-all --die-with-parent --ro-bind / / --dev /dev \
+            --proc /proc /bin/true
+          echo "bwrap 可用"
 
       - name: Build bundle
         env:
