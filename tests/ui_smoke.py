@@ -138,7 +138,10 @@ class SmokeApplication(RDPFlowApplication):
             snapshot = Gtk.Snapshot()
             paintable.snapshot(snapshot, width, height)
             node = snapshot.to_node()
-            renderer = Gsk.Renderer.new_for_surface(window.get_surface())
+            # 必须复用窗口自己的 renderer：Gsk.Renderer.new_for_surface() 另建一个
+            # 已 realize 的渲染器，交给 Python GC 时会在 gsk_renderer_dispose 里
+            # 断言失败并 core dump（CI 上实测 exit 134）。
+            renderer = window.get_renderer()
             texture = renderer.render_texture(node, None)
             texture.save_to_png(f"/tmp/rdpflow-{name}.png")
             print(f"captured {name}: {width}x{height}")
