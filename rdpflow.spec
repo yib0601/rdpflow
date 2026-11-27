@@ -1,5 +1,5 @@
 Name:           rdpflow
-Version:        0.2.0
+Version:        0.3.0
 # 构建号由 build-rpm.sh 通过 --define build_release=<n> 传入（RELEASE 环境变量），
 # 未传时回到 1。用自定义宏名而不是 rpm 内建的 release 宏：后者被 --define 时
 # 直接报「宏中存在空内容」，构建中断。
@@ -13,6 +13,7 @@ Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch
 
 BuildRequires:  desktop-file-utils
+BuildRequires:  appstream
 
 Requires:       python3 >= 3.10
 Requires:       python3-gobject
@@ -44,6 +45,10 @@ install -d %{buildroot}%{_libexecdir}/rdpflow/assets
 install -m 0644 rdpflow/*.py %{buildroot}%{_libexecdir}/rdpflow/
 install -m 0644 rdpflow/assets/style.css %{buildroot}%{_libexecdir}/rdpflow/assets/
 install -m 0644 rdpflow/assets/rdpflow.svg %{buildroot}%{_libexecdir}/rdpflow/assets/
+# 界面翻译：.mo 按 <lang>/LC_MESSAGES/ 铺进包内 locale/，i18n 从包目录找它，
+# 所以不需要额外的编译期工具（spec 里也就不必 BuildRequires gettext）。
+install -d %{buildroot}%{_libexecdir}/rdpflow/locale
+cp -a rdpflow/locale/. %{buildroot}%{_libexecdir}/rdpflow/locale/
 
 install -d %{buildroot}%{_bindir}
 cat > rdpflow-launcher <<'EOF'
@@ -60,28 +65,44 @@ install -m 0755 rdpflow-launcher %{buildroot}%{_bindir}/rdpflow
 
 install -d %{buildroot}%{_datadir}/applications
 sed -e 's|^Exec=.*|Exec=rdpflow|' \
-    -e 's|^Icon=.*|Icon=rdpflow|' \
-    rdpflow.desktop > %{buildroot}%{_datadir}/applications/rdpflow.desktop
-chmod 0644 %{buildroot}%{_datadir}/applications/rdpflow.desktop
-%{_bindir}/desktop-file-validate %{buildroot}%{_datadir}/applications/rdpflow.desktop
+    io.github.rdpflow.RDPFlow.desktop > %{buildroot}%{_datadir}/applications/io.github.rdpflow.RDPFlow.desktop
+chmod 0644 %{buildroot}%{_datadir}/applications/io.github.rdpflow.RDPFlow.desktop
+%{_bindir}/desktop-file-validate %{buildroot}%{_datadir}/applications/io.github.rdpflow.RDPFlow.desktop
 
+# 桌面文件名与图标名都跟 application_id 取同一个字符串：GNOME Shell 在 Wayland 下按
+# xdg_toplevel 的 app_id 找 <app_id>.desktop，再读其中的 Icon=。名字不一致时窗口照常
+# 起来，但 dock / 任务栏只能画兜底的 image-missing 图标。
 install -d %{buildroot}%{_datadir}/icons/hicolor/scalable/apps
 install -m 0644 rdpflow/assets/rdpflow.svg \
-    %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/rdpflow.svg
+    %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/io.github.rdpflow.RDPFlow.svg
 
 install -d %{buildroot}%{_docdir}/%{name}
 install -m 0644 README.md CHANGELOG.md %{buildroot}%{_docdir}/%{name}/
 
+# AppStream 元数据：软件中心（GNOME Software / KDE Discover）靠它显示应用信息。
+install -d %{buildroot}%{_metainfodir}
+install -m 0644 io.github.rdpflow.RDPFlow.metainfo.xml \
+    %{buildroot}%{_metainfodir}/io.github.rdpflow.RDPFlow.metainfo.xml
+
 %check
 python3 -m unittest discover -s tests -p 'test_*.py' -v
+# 自检只读环境、不开窗口，能在 %check 里跑：比装完才发现缺 typelib 便宜得多。
+python3 -m rdpflow --version
 
 %post
 %{_bindir}/update-desktop-database %{_datadir}/applications >/dev/null 2>&1 || :
 %{_bindir}/gtk4-update-icon-cache -f -t %{_datadir}/icons/hicolor >/dev/null 2>&1 || :
+# appstreamcli 在部分版本里不在默认 PATH 前缀下，缺了就静默跳过而不是让安装失败。
+if command -v appstreamcli >/dev/null 2>&1; then
+    appstreamcli refresh-cache --force >/dev/null 2>&1 || :
+fi
 
 %postun
 %{_bindir}/update-desktop-database %{_datadir}/applications >/dev/null 2>&1 || :
 %{_bindir}/gtk4-update-icon-cache -f -t %{_datadir}/icons/hicolor >/dev/null 2>&1 || :
+if command -v appstreamcli >/dev/null 2>&1; then
+    appstreamcli refresh-cache --force >/dev/null 2>&1 || :
+fi
 
 %files
 %license LICENSE
@@ -89,10 +110,16 @@ python3 -m unittest discover -s tests -p 'test_*.py' -v
 %doc %{_docdir}/%{name}/CHANGELOG.md
 %{_bindir}/rdpflow
 %{_libexecdir}/rdpflow/
-%{_datadir}/applications/rdpflow.desktop
-%{_datadir}/icons/hicolor/scalable/apps/rdpflow.svg
+%{_datadir}/applications/io.github.rdpflow.RDPFlow.desktop
+%{_datadir}/icons/hicolor/scalable/apps/io.github.rdpflow.RDPFlow.svg
+%{_metainfodir}/io.github.rdpflow.RDPFlow.metainfo.xml
 
 %changelog
+* Fri Nov 27 2026 RDPFlow contributors <yib0601@qq.com> - 0.3.0-1
+- Ship an English UI through gettext, with RDPFLOW_LANG to override the locale.
+- Add Flatpak, AppImage, portable tarball and Windows installer distributions, on x86_64 and arm64.
+- Fix the desktop identity so the dock shows the real icon instead of the fallback.
+
 * Fri Nov 27 2026 RDPFlow contributors <yib0601@qq.com> - 0.2.0-1
 - Size windows and dialogs from the real monitor instead of hardcoded pixels.
 - Default canvas follows the local screen; /scale-desktop follows the local scale factor.

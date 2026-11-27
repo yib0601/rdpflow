@@ -1,0 +1,774 @@
+# English translation of RDPFlow.
+# This file is generated from po/rdpflow.pot by scripts/build-locales.py --refresh-po.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: RDPFlow 0.2.0\n"
+"Report-Msgid-Bugs-To: https://github.com/yib0601/rdpflow/issues\n"
+"PO-Revision-Date: 2026-11-27 00:00+0800\n"
+"Last-Translator: RDPFlow contributors\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+#: rdpflow/ui.py:1024
+msgid "FreeRDP 退出码 {code}，请查看日志末尾。"
+msgstr "FreeRDP exited with code {code}; check the end of the log."
+
+#: rdpflow/ui.py:547
+msgid "FreeRDP：{version}"
+msgstr "FreeRDP: {version}"
+
+#: rdpflow/models.py:214
+msgid "IPv6 地址请使用 [地址]:端口 的格式"
+msgstr "For IPv6, use the form [address]:port"
+
+#: rdpflow/ui.py:217
+msgid "Linux 远程桌面"
+msgstr "Linux remote desktop"
+
+#: rdpflow/dialogs.py:523
+msgid "RD 网关（可选）"
+msgstr "RD Gateway (optional)"
+
+#: rdpflow/keyring.py:50
+msgid "RDPFlow：{id}"
+msgstr "RDPFlow: {id}"
+
+#: rdpflow/ui.py:1054
+msgid "{name} 副本"
+msgstr "{name} copy"
+
+#: rdpflow/dialogs.py:603
+msgid "{name}当前未生效：FreeRDP 不接受它与{partner}同时下发。"
+msgstr "{name} has no effect right now: FreeRDP rejects it together with {partner}."
+
+#: rdpflow/ui.py:969
+msgid "{name}未下发：与{partner}互斥（FreeRDP 会拒绝同时使用）"
+msgstr "{name} was not sent: it conflicts with {partner} (FreeRDP rejects the combination)"
+
+#: rdpflow/ui.py:1063
+msgid "「{name}」及其设置会被删除。"
+msgstr "“{name}” and its settings will be deleted."
+
+#: rdpflow/ui.py:606
+msgid "上次连接失败，可以查看日志或尝试兼容模式。"
+msgstr "The last attempt failed — check the log or try compatibility mode."
+
+#: rdpflow/ui.py:137
+msgid "不可用"
+msgstr "Unavailable"
+
+#: rdpflow/ui.py:541
+msgid "不可用（{reason}）；「记住密码」已关闭，每次连接手动输入密码"
+msgstr "Unavailable ({reason}); “remember password” is off, so enter it on every connection"
+
+#: rdpflow/store.py:33
+msgid "不支持的配置文件版本"
+msgstr "Unsupported config file version"
+
+#: rdpflow/dialogs.py:52
+msgid "严格校验"
+msgstr "Strict validation"
+
+#: rdpflow/dialogs.py:492
+msgid "之后新建的连接都用这套配置"
+msgstr "New connections will use these settings"
+
+#: rdpflow/ui.py:749
+msgid "以兼容模式重试"
+msgstr "Retry in compatibility mode"
+
+#: rdpflow/ui.py:399
+msgid "以兼容模式重试当前连接"
+msgstr "Retry the current connection in compatibility mode"
+
+#: rdpflow/ui.py:978
+msgid "会话已启动，但密码没记住：{error}"
+msgstr "Session started, but the password was not saved: {error}"
+
+#: rdpflow/ui.py:1021
+msgid "会话结束，退出码：{code}"
+msgstr "Session ended with exit code {code}"
+
+#: rdpflow/ui.py:740
+msgid "会话诊断"
+msgstr "Session diagnostics"
+
+#: rdpflow/ui.py:464 rdpflow/ui.py:626
+msgid "会话运行中"
+msgstr "Session running"
+
+#: rdpflow/dialogs.py:378
+msgid "保存"
+msgstr "Save"
+
+#: rdpflow/dialogs.py:253
+msgid "保存为常用连接"
+msgstr "Save as a saved connection"
+
+#: rdpflow/dialogs.py:491
+msgid "保存为新的全局默认"
+msgstr "Save as the new global default"
+
+#: rdpflow/ui.py:288
+msgid "保存常用连接，选择合适的画面预设；出问题时，直接看到失败原因。"
+msgstr "Save the connections you use, pick a display preset, and see the real reason when a session fails."
+
+#: rdpflow/ui.py:837
+msgid "保存连接失败：{error}"
+msgstr "Could not save the connection: {error}"
+
+#: rdpflow/dialogs.py:40 rdpflow/dialogs.py:468
+msgid "共享剪贴板"
+msgstr "Shared clipboard"
+
+#: rdpflow/models.py:375
+msgid "共享名称只能包含字母、数字、下划线和连字符"
+msgstr "The share name may only contain letters, digits, underscores and hyphens"
+
+#: rdpflow/freerdp.py:154
+msgid "共享目录不存在：{path}"
+msgstr "Shared folder does not exist: {path}"
+
+#: rdpflow/dialogs.py:509
+msgid "共享目录（可选）"
+msgstr "Shared folder (optional)"
+
+#: rdpflow/ui.py:175
+msgid "关于 RDPFlow"
+msgstr "About RDPFlow"
+
+#: rdpflow/dialogs.py:78
+msgid "关闭"
+msgstr "Off"
+
+#: rdpflow/ui.py:750
+msgid "关闭 RDP8 图形管线并使用软件渲染"
+msgstr "Turn off the RDP8 graphics pipeline and use software rendering"
+
+#: rdpflow/dialogs.py:53
+msgid "关闭音频"
+msgstr "No audio"
+
+#: rdpflow/dialogs.py:49
+msgid "兼容模式"
+msgstr "Compatibility mode"
+
+#: rdpflow/ui.py:607
+msgid "兼容模式重试"
+msgstr "Retry in compatibility mode"
+
+#: rdpflow/ui.py:1072
+msgid "删除"
+msgstr "Delete"
+
+#: rdpflow/ui.py:1068
+msgid "删除这个连接？"
+msgstr "Delete this connection?"
+
+#: rdpflow/ui.py:734
+msgid "删除连接"
+msgstr "Delete connection"
+
+#: rdpflow/dialogs.py:38 rdpflow/dialogs.py:458
+msgid "动态分辨率"
+msgstr "Dynamic resolution"
+
+#: rdpflow/dialogs.py:51
+msgid "单屏全屏"
+msgstr "Fullscreen on one monitor"
+
+#: rdpflow/dialogs.py:375 rdpflow/ui.py:1071
+msgid "取消"
+msgstr "Cancel"
+
+#: rdpflow/dialogs.py:418
+msgid "可以先留空，连接时再输入"
+msgstr "You can leave it blank and enter it when connecting"
+
+#: rdpflow/ui.py:548
+msgid "可执行文件：{path}"
+msgstr "Executable: {path}"
+
+#: rdpflow/ui.py:538
+msgid "可用（「记住密码」正常）"
+msgstr "Available (“remember password” works)"
+
+#: rdpflow/dialogs.py:398
+msgid "名称"
+msgstr "Name"
+
+#: rdpflow/ui.py:955
+msgid "启动 FreeRDP：{path}"
+msgstr "Starting FreeRDP: {path}"
+
+#: rdpflow/ui.py:946
+msgid "启动失败：{error}"
+msgstr "Startup failed: {error}"
+
+#: rdpflow/dialogs.py:53
+msgid "在本机播放"
+msgstr "Play locally"
+
+#: rdpflow/dialogs.py:53
+msgid "在远程播放"
+msgstr "Play on the remote host"
+
+#: rdpflow/dialogs.py:412
+msgid "域（可选）"
+msgstr "Domain (optional)"
+
+#: rdpflow/ui.py:379
+msgid "复制日志"
+msgstr "Copy log"
+
+#: rdpflow/ui.py:367
+msgid "复制环境信息"
+msgstr "Copy environment info"
+
+#: rdpflow/ui.py:743
+msgid "复制诊断日志"
+msgstr "Copy diagnostic log"
+
+#: rdpflow/ui.py:729
+msgid "复制连接"
+msgstr "Duplicate connection"
+
+#: rdpflow/dialogs.py:249 rdpflow/dialogs.py:336 rdpflow/dialogs.py:416
+msgid "密码"
+msgstr "Password"
+
+#: rdpflow/dialogs.py:327
+msgid "密码不会写入配置文件或进程命令行。"
+msgstr "The password is never written to the config file or the process command line."
+
+#: rdpflow/keyring.py:55
+msgid "密码库写入失败：{error}"
+msgstr "Could not write to the keyring: {error}"
+
+#: rdpflow/keyring.py:57
+msgid "密码库拒绝了这次写入，密码没有保存"
+msgstr "The keyring rejected the write, so the password was not saved"
+
+#: rdpflow/ui.py:552
+msgid "密码库：{state}"
+msgstr "Keyring: {state}"
+
+#: rdpflow/ui.py:195
+msgid "工作台"
+msgstr "Workspace"
+
+#: rdpflow/ui.py:1105
+msgid "已复制到剪贴板"
+msgstr "Copied to the clipboard"
+
+#: rdpflow/ui.py:630
+msgid "已就绪"
+msgstr "Ready"
+
+#: rdpflow/ui.py:153
+msgid "已把老配置里的 1920×1080 升级为「自动跟随本机屏幕」"
+msgstr "Old 1920×1080 settings were switched to “follow the local screen”"
+
+#: rdpflow/ui.py:831
+msgid "已更新全局默认：之后新建的连接都用这套配置"
+msgstr "Global defaults updated — new connections will use these settings"
+
+#: rdpflow/ui.py:817
+msgid "已联动关闭{name}：FreeRDP 不接受动态分辨率与智能缩放同时下发"
+msgstr "{name} was turned off automatically: FreeRDP rejects dynamic resolution and smart sizing together"
+
+#: rdpflow/dialogs.py:591
+msgid "已联动关闭{name}：FreeRDP 不接受动态分辨率与智能缩放同时下发。"
+msgstr "{name} was turned off automatically: FreeRDP rejects dynamic resolution and smart sizing together."
+
+#: rdpflow/ui.py:1065
+msgid "已记住的密码也会从「密码和密钥」里一起删掉，不可恢复。"
+msgstr " The saved password will also be removed from the keyring. This cannot be undone."
+
+#: rdpflow/dialogs.py:395
+msgid "常用信息保存后，下次只需一次点击。"
+msgstr "Save it once and it is one click next time."
+
+#: rdpflow/ui.py:312
+msgid "常用连接"
+msgstr "Recent connections"
+
+#: rdpflow/dialogs.py:46
+msgid "平衡（推荐）"
+msgstr "Balanced (recommended)"
+
+#: rdpflow/dialogs.py:78
+msgid "开启"
+msgstr "On"
+
+#: rdpflow/ui.py:303
+msgid "开始连接"
+msgstr "Connect now"
+
+#: rdpflow/dialogs.py:218 rdpflow/ui.py:165 rdpflow/ui.py:246
+msgid "快速连接"
+msgstr "Quick connect"
+
+#: rdpflow/dialogs.py:52
+msgid "忽略校验（不推荐）"
+msgstr "Skip validation (not recommended)"
+
+#: rdpflow/dialogs.py:480
+msgid "恢复全局默认"
+msgstr "Restore global defaults"
+
+#: rdpflow/ui.py:716
+msgid "恢复默认"
+msgstr "Restore defaults"
+
+#: rdpflow/dialogs.py:51
+msgid "所有显示器"
+msgstr "All monitors"
+
+#: rdpflow/freerdp.py:42
+msgid "找不到 RDPFLOW_FREERDP 指定的程序：{path}"
+msgstr "RDPFLOW_FREERDP points at a program that was not found: {path}"
+
+#: rdpflow/dialogs.py:482
+msgid "把上面 {count} 项还原成当前默认值，其余字段保持不变"
+msgstr "Reset the {count} settings above to the current defaults; other fields stay as they are"
+
+#: rdpflow/ui.py:226
+msgid "搜索连接…"
+msgstr "Search connections…"
+
+#: rdpflow/ui.py:637
+msgid "断开"
+msgstr "Disconnect"
+
+#: rdpflow/ui.py:705
+msgid "断开后自动重试，最多 5 次"
+msgstr "Retry automatically after a drop, up to 5 times"
+
+#: rdpflow/dialogs.py:41 rdpflow/dialogs.py:470
+msgid "断线自动重连"
+msgstr "Reconnect after a drop"
+
+#: rdpflow/ui.py:241
+msgid "新建"
+msgstr "New"
+
+#: rdpflow/ui.py:491
+msgid "新建一个连接，之后就能从这里一键进入。"
+msgstr "Create a connection and it will show up here for one-click access."
+
+#: rdpflow/dialogs.py:374
+msgid "新建连接"
+msgstr "New connection"
+
+#: rdpflow/freerdp.py:269
+msgid "无法传递连接参数：{error}"
+msgstr "Could not pass the connection arguments: {error}"
+
+#: rdpflow/freerdp.py:291
+msgid "无法写入连接参数文件：{error}"
+msgstr "Could not write the connection argument file: {error}"
+
+#: rdpflow/freerdp.py:262 rdpflow/freerdp.py:308
+msgid "无法启动 FreeRDP：{error}"
+msgstr "Could not start FreeRDP: {error}"
+
+#: rdpflow/__main__.py:172
+msgid "无法启动 RDPFlow：GTK 运行时不可用\n  {kind}: {error}\n  装齐依赖后用 `rdpflow --self-check` 复查。"
+msgstr "Could not start RDPFlow: the GTK runtime is unavailable\n  {kind}: {error}\n  Install the missing dependencies and re-check with `rdpflow --self-check`."
+
+#: rdpflow/__main__.py:182
+msgid "无法打开图形界面：{error}"
+msgstr "Could not open the graphical interface: {error}"
+
+#: rdpflow/__main__.py:159
+msgid "无法识别的选项：{options}\n\n{usage}"
+msgstr "Unrecognised option: {options}\n\n{usage}"
+
+#: rdpflow/store.py:88
+msgid "无法读取连接配置，已尽量备份原文件：{error}"
+msgstr "Could not read the connection settings; the original was backed up where possible: {error}"
+
+#: rdpflow/ui.py:549
+msgid "显示后端：{backend}"
+msgstr "Display backend: {backend}"
+
+#: rdpflow/dialogs.py:37 rdpflow/dialogs.py:453 rdpflow/ui.py:693
+msgid "显示方式"
+msgstr "Display mode"
+
+#: rdpflow/ui.py:741
+msgid "显示最近一次 FreeRDP 会话输出"
+msgstr "Show the output of the last FreeRDP session"
+
+#: rdpflow/dialogs.py:475
+msgid "显示远程壁纸"
+msgstr "Show remote wallpaper"
+
+#: rdpflow/dialogs.py:39 rdpflow/dialogs.py:464
+msgid "智能缩放"
+msgstr "Smart sizing"
+
+#: rdpflow/ui.py:375
+msgid "最近会话日志"
+msgstr "Recent session log"
+
+#: rdpflow/models.py:269
+msgid "未命名连接"
+msgstr "Unnamed connection"
+
+#: rdpflow/ui.py:136
+msgid "未找到"
+msgstr "not found"
+
+#: rdpflow/freerdp.py:50
+msgid "未找到 FreeRDP，{hint}"
+msgstr "FreeRDP not found. {hint}"
+
+#: rdpflow/ui.py:540
+msgid "未找到 libsecret"
+msgstr "libsecret not found"
+
+#: rdpflow/ui.py:550
+msgid "未知"
+msgstr "unknown"
+
+#: rdpflow/dialogs.py:506
+msgid "本地资源"
+msgstr "Local resources"
+
+#: rdpflow/ui.py:1047
+msgid "正在以兼容模式重试"
+msgstr "Retrying in compatibility mode"
+
+#: rdpflow/ui.py:1039
+msgid "正在断开连接"
+msgstr "Disconnecting"
+
+#: rdpflow/ui.py:1037
+msgid "正在断开连接；若进程未及时退出，将强制结束。"
+msgstr "Disconnecting; the process will be killed if it does not exit promptly."
+
+#: rdpflow/ui.py:1102
+msgid "没有可复制的内容"
+msgstr "Nothing to copy"
+
+#: rdpflow/dialogs.py:47
+msgid "流畅优先"
+msgstr "Prefer smoothness"
+
+#: rdpflow/dialogs.py:48
+msgid "清晰优先"
+msgstr "Prefer clarity"
+
+#: rdpflow/freerdp.py:78
+msgid "版本未知"
+msgstr "unknown version"
+
+#: rdpflow/dialogs.py:408
+msgid "用户名"
+msgstr "Username"
+
+#: rdpflow/dialogs.py:245
+msgid "用户名（可选）"
+msgstr "Username (optional)"
+
+#: rdpflow/__main__.py:22
+msgid "用法：rdpflow [选项] [rdp://主机:端口]\n\n  --version              打印版本号后退出\n  --self-check           检查运行环境（解释器 / GTK / 资源 / 配置目录 / FreeRDP）并打印 JSON\n  --json-out PATH        把自检结果同时写进 PATH（Windows 无控制台启动时用得上）\n  -h, --help             显示本帮助\n"
+msgstr "Usage: rdpflow [options] [rdp://host:port]\n\n  --version              print the version and exit\n  --self-check           check the runtime (interpreter / GTK / assets / config dir / FreeRDP) and print JSON\n  --json-out PATH        also write the self-check result to PATH (useful when Windows starts without a console)\n  -h, --help             show this help\n"
+
+#: rdpflow/dialogs.py:34 rdpflow/dialogs.py:441 rdpflow/ui.py:667
+msgid "画面预设"
+msgstr "Quality preset"
+
+#: rdpflow/dialogs.py:418
+msgid "留空表示不改动已记住的密码"
+msgstr "Leave blank to keep the saved password"
+
+#: rdpflow/ui.py:957
+msgid "目标：{endpoint}；画质：{quality}；画布：{canvas}"
+msgstr "Target: {endpoint}; quality: {quality}; canvas: {canvas}"
+
+#: rdpflow/dialogs.py:51
+msgid "窗口"
+msgstr "Windowed"
+
+#: rdpflow/dialogs.py:35 rdpflow/dialogs.py:445 rdpflow/ui.py:675
+msgid "窗口分辨率"
+msgstr "Window resolution"
+
+#: rdpflow/dialogs.py:459 rdpflow/ui.py:702
+msgid "窗口变化时同步远程分辨率"
+msgstr "Follow window size with the remote resolution"
+
+#: rdpflow/dialogs.py:405
+msgid "端口"
+msgstr "Port"
+
+#: rdpflow/models.py:228
+msgid "端口必须在 1–65535 之间"
+msgstr "The port must be between 1 and 65535"
+
+#: rdpflow/models.py:223
+msgid "端口必须是数字"
+msgstr "The port must be a number"
+
+#: rdpflow/ui.py:317
+msgid "管理连接"
+msgstr "Manage connections"
+
+#: rdpflow/ui.py:725
+msgid "编辑完整配置"
+msgstr "Edit full configuration"
+
+#: rdpflow/dialogs.py:374
+msgid "编辑连接"
+msgstr "Edit connection"
+
+#: rdpflow/__main__.py:50
+msgid "缺少 PyGObject 或 GTK4/libadwaita 的 typelib"
+msgstr "PyGObject or the GTK4/libadwaita typelib is missing"
+
+#: rdpflow/dialogs.py:527
+msgid "网关地址"
+msgstr "Gateway host"
+
+#: rdpflow/dialogs.py:537
+msgid "网关域"
+msgstr "Gateway domain"
+
+#: rdpflow/dialogs.py:533
+msgid "网关用户名"
+msgstr "Gateway username"
+
+#: rdpflow/dialogs.py:530
+msgid "网关端口"
+msgstr "Gateway port"
+
+#: rdpflow/models.py:372
+msgid "网关端口必须在 1–65535 之间"
+msgstr "The gateway port must be between 1 and 65535"
+
+#: rdpflow/models.py:360
+msgid "自动（{width}×{height}）"
+msgstr "Automatic ({width}×{height})"
+
+#: rdpflow/dialogs.py:54
+msgid "自动（跟随本机屏幕）"
+msgstr "Automatic (follow the local screen)"
+
+#: rdpflow/dialogs.py:56
+msgid "自动（跟随本机）"
+msgstr "Automatic (follow the local machine)"
+
+#: rdpflow/ui.py:171
+msgid "菜单"
+msgstr "Menu"
+
+#: rdpflow/dialogs.py:422
+msgid "记住密码"
+msgstr "Remember password"
+
+#: rdpflow/dialogs.py:542
+msgid "证书"
+msgstr "Certificate"
+
+#: rdpflow/dialogs.py:545
+msgid "证书校验"
+msgstr "Certificate validation"
+
+#: rdpflow/ui.py:174 rdpflow/ui.py:350
+msgid "诊断信息"
+msgstr "Diagnostics"
+
+#: rdpflow/models.py:368
+msgid "请使用已经解析的主机地址和端口"
+msgstr "Use the already-resolved host and port"
+
+#: rdpflow/ui.py:1044
+msgid "请先选择一个连接"
+msgstr "Pick a connection first"
+
+#: rdpflow/freerdp.py:62
+msgid "请安装 freerdp 或 freerdp2-x11"
+msgstr "Install freerdp or freerdp2-x11"
+
+#: rdpflow/freerdp.py:61
+msgid "请把 wfreerdp.exe 放进 PATH，或用 RDPFLOW_FREERDP 指定它的完整路径"
+msgstr "Put wfreerdp.exe on PATH, or point RDPFLOW_FREERDP at its full path"
+
+#: rdpflow/models.py:207
+msgid "请输入远程主机地址"
+msgstr "Enter a remote host"
+
+#: rdpflow/dialogs.py:228
+msgid "输入主机即可开始，也可以使用 user@host 的格式。"
+msgstr "Enter a host to start — user@host also works."
+
+#: rdpflow/dialogs.py:315
+msgid "输入登录密码"
+msgstr "Enter the sign-in password"
+
+#: rdpflow/ui.py:360
+msgid "运行环境"
+msgstr "Environment"
+
+#: rdpflow/ui.py:343 rdpflow/ui.py:597
+msgid "返回首页"
+msgstr "Back to home"
+
+#: rdpflow/ui.py:436
+msgid "还没有匹配的连接"
+msgstr "No matching connections"
+
+#: rdpflow/ui.py:489
+msgid "还没有常用连接"
+msgstr "No saved connections yet"
+
+#: rdpflow/ui.py:928
+msgid "这个连接已经有一个会话在运行"
+msgstr "A session for this connection is already running"
+
+#: rdpflow/keyring.py:44
+msgid "这台机器没有可用的密码库（需要已登录的桌面会话与 libsecret）"
+msgstr "No keyring is available here (it needs a logged-in desktop session and libsecret)"
+
+#: rdpflow/dialogs.py:87
+msgid "这台机器没有可用的密码库，密码只能每次手动输入。"
+msgstr "No keyring is available on this machine, so the password has to be typed each time."
+
+#: rdpflow/models.py:226
+msgid "远程主机地址格式不正确"
+msgstr "That remote host does not look valid"
+
+#: rdpflow/dialogs.py:402
+msgid "远程主机（IP:端口 / IPv6）"
+msgstr "Remote host (IP:port / IPv6)"
+
+#: rdpflow/dialogs.py:240
+msgid "远程主机（IP:端口）"
+msgstr "Remote host (IP:port)"
+
+#: rdpflow/dialogs.py:518
+msgid "远程共享名称"
+msgstr "Remote share name"
+
+#: rdpflow/ui.py:164
+msgid "远程桌面工作台"
+msgstr "Remote desktop workspace"
+
+#: rdpflow/dialogs.py:36 rdpflow/dialogs.py:449 rdpflow/ui.py:684
+msgid "远程桌面缩放"
+msgstr "Remote desktop scaling"
+
+#: rdpflow/ui.py:965
+msgid "远程桌面缩放：{scale}%"
+msgstr "Remote desktop scaling: {scale}%"
+
+#: rdpflow/ui.py:283
+msgid "远程桌面，少一点折腾。"
+msgstr "Remote desktop, minus the fuss."
+
+#: rdpflow/dialogs.py:264 rdpflow/dialogs.py:340 rdpflow/dialogs.py:394
+#: rdpflow/ui.py:192 rdpflow/ui.py:468 rdpflow/ui.py:641
+msgid "连接"
+msgstr "Connect"
+
+#: rdpflow/store.py:71
+msgid "连接列表格式不正确"
+msgstr "The connection list is malformed"
+
+#: rdpflow/dialogs.py:324
+msgid "连接到 {endpoint}"
+msgstr "Connect to {endpoint}"
+
+#: rdpflow/freerdp.py:176
+msgid "连接参数不能包含换行符"
+msgstr "Connection arguments cannot contain line breaks"
+
+#: rdpflow/ui.py:628
+msgid "连接失败"
+msgstr "Connection failed"
+
+#: rdpflow/ui.py:352
+msgid "连接失败时，先确认 FreeRDP、显示后端和目标主机状态。"
+msgstr "When a connection fails, check FreeRDP, the display backend and the target host first."
+
+#: rdpflow/ui.py:1025
+msgid "连接失败，诊断面板已记录原因"
+msgstr "Connection failed — the reason is recorded in the diagnostics panel"
+
+#: rdpflow/ui.py:908
+msgid "连接已保存"
+msgstr "Connection saved"
+
+#: rdpflow/ui.py:901
+msgid "连接已保存，但密码没记住：{error}"
+msgstr "Connection saved, but the password was not: {error}"
+
+#: rdpflow/ui.py:1087
+msgid "连接已删除"
+msgstr "Connection deleted"
+
+#: rdpflow/ui.py:653
+msgid "连接配置"
+msgstr "Connection settings"
+
+#: rdpflow/dialogs.py:524
+msgid "适用于 Remote Desktop Gateway 或堡垒机"
+msgstr "For Remote Desktop Gateway or a jump host"
+
+#: rdpflow/dialogs.py:512
+msgid "选择目录"
+msgstr "Choose folder"
+
+#: rdpflow/dialogs.py:558
+msgid "选择要共享的目录"
+msgstr "Choose a folder to share"
+
+#: rdpflow/store.py:67
+msgid "配置文件结构不正确"
+msgstr "The config file structure is invalid"
+
+#: rdpflow/ui.py:553
+msgid "配置文件：{path}"
+msgstr "Config file: {path}"
+
+#: rdpflow/ui.py:1116
+msgid "面向 Linux 日常远程 Windows 的现代连接工具。"
+msgstr "A modern connection tool for everyday remote Windows sessions from Linux."
+
+#: rdpflow/dialogs.py:472
+msgid "音频"
+msgstr "Audio"
+
+#: rdpflow/dialogs.py:52
+msgid "首次信任（推荐）"
+msgstr "Trust on first use (recommended)"
+
+#: rdpflow/ui.py:545
+msgid "；FreeRDP 错误：{error}"
+msgstr "; FreeRDP error: {error}"
+
+
+msgid "修改后自动保存。"
+msgstr "Changes are saved automatically."
+
+msgid "已恢复默认配置项"
+msgstr "Experience settings restored to defaults"
+
+msgid "把这一组配置项还原成全局默认值"
+msgstr "Reset these settings to the global defaults"
+
+msgid "改完可「恢复全局默认」，或把当前配置存成新的默认。"
+msgstr "Restore the global defaults afterwards, or save the current settings as the new default."
+
+msgid "经网关 {host}"
+msgstr "via gateway {host}"
+
+msgid "缩放画面适配窗口；与动态分辨率互斥，同时开启时以动态分辨率生效"
+msgstr "Scale the session to fit the window; it conflicts with dynamic resolution, which wins when both are on"

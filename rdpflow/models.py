@@ -6,6 +6,8 @@ from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime, timezone
 from typing import Any
 
+from .i18n import _
+
 
 RESOLUTION_AUTO = "auto"
 RESOLUTIONS = (RESOLUTION_AUTO, "1280x720", "1600x900", "1920x1080", "2560x1440", "3840x2160")
@@ -27,7 +29,7 @@ FALLBACK_CANVAS = (1600, 900)
 WINDOW_CHROME = (24, 96)
 MIN_CANVAS = (1024, 640)
 
-# 「连接体验」里可被改成默认值的字段，是这套默认值的唯一可信来源：
+# 「连接配置」里可被改成默认值的字段，是这套默认值的唯一可信来源：
 # 新建连接、连接编辑器、详情页的「恢复默认」都从这里取值，不在别处写死。
 EXPERIENCE_DEFAULTS: dict[str, object] = {
     "quality": "balanced",
@@ -60,7 +62,7 @@ def default_experience_options() -> dict[str, object]:
 def apply_experience_options(
     options: dict[str, object] | None, overrides: dict[str, object] | None = None
 ) -> dict[str, object]:
-    """把外部传入的体验选项清洗成合法值，缺失或非法项回落到出厂默认。"""
+    """把外部传入的配置项清洗成合法值，缺失或非法项回落到出厂默认。"""
     resolved = default_experience_options()
     for source in (options or {}, overrides or {}):
         for key, value in source.items():
@@ -202,14 +204,14 @@ def parse_endpoint(value: str, default_port: int = 3389) -> tuple[str, int]:
         value = value[6:]
     value = value.rstrip("/")
     if not value:
-        raise ValueError("请输入远程主机地址")
+        raise ValueError(_("请输入远程主机地址"))
 
     host = value
     port = default_port
     if value.startswith("["):
         match = re.fullmatch(r"\[([^\]]+)\](?::(\d+))?", value)
         if not match:
-            raise ValueError("IPv6 地址请使用 [地址]:端口 的格式")
+            raise ValueError(_("IPv6 地址请使用 [地址]:端口 的格式"))
         host = match.group(1)
         if match.group(2):
             port = int(match.group(2))
@@ -218,12 +220,12 @@ def parse_endpoint(value: str, default_port: int = 3389) -> tuple[str, int]:
         if candidate_port.isdigit():
             host, port = candidate_host, int(candidate_port)
         elif candidate_port:
-            raise ValueError("端口必须是数字")
+            raise ValueError(_("端口必须是数字"))
 
     if any(character.isspace() for character in host) or "/" in host:
-        raise ValueError("远程主机地址格式不正确")
+        raise ValueError(_("远程主机地址格式不正确"))
     if not 1 <= port <= 65535:
-        raise ValueError("端口必须在 1–65535 之间")
+        raise ValueError(_("端口必须在 1–65535 之间"))
     return host, port
 
 
@@ -264,7 +266,7 @@ class Connection:
             self.port = parsed_port
         self.name = self.name.strip()
         if not self.name:
-            self.name = self.host or "未命名连接"
+            self.name = self.host or _("未命名连接")
         if self.resolution not in RESOLUTIONS:
             self.resolution = DEFAULT_RESOLUTION
         if self.certificate_mode not in CERTIFICATE_MODES:
@@ -274,7 +276,7 @@ class Connection:
         self.normalize_experience()
 
     def normalize_experience(self) -> None:
-        """把体验字段收敛到合法值。
+        """把配置字段收敛到合法值。
 
         两个缩放开关默认都为开；这里是存值层，不做互斥裁剪 —— 裁剪发生在两个地方：
         用户在界面上打开其一时自动关掉另一个（toggle_switch），
@@ -288,7 +290,7 @@ class Connection:
         return {key: getattr(self, key) for key in EXPERIENCE_FIELDS}
 
     def set_experience_option(self, field_name: str, value: object) -> str | None:
-        """改一个体验项；互斥开关在这里统一处理，调用方不必自己配对。
+        """改一个配置项；互斥开关在这里统一处理，调用方不必自己配对。
 
         只有开关字段按布尔处理，其余（画面预设 / 分辨率 / 显示方式）原样写入 ——
         统一 bool() 会把 "2560x1440" 变成 True。
@@ -315,7 +317,7 @@ class Connection:
         return disabled
 
     def apply_defaults(self, defaults: dict[str, object] | None) -> Connection:
-        """套用一份默认体验配置，覆盖连接上现有的同名项。"""
+        """套用一份默认配置，覆盖连接上现有的同名项。"""
         for key, value in apply_experience_options(defaults).items():
             setattr(self, key, value)
         return self
@@ -324,7 +326,7 @@ class Connection:
     def with_defaults(
         cls, defaults: dict[str, object] | None = None, **overrides: object
     ) -> Connection:
-        """用一份默认体验配置构造连接，overrides 覆盖任意字段（如 host / name）。"""
+        """用一份默认配置构造连接，overrides 覆盖任意字段（如 host / name）。"""
         experience = {key: value for key, value in overrides.items() if key in EXPERIENCE_DEFAULTS}
         others = {key: value for key, value in overrides.items() if key not in EXPERIENCE_DEFAULTS}
         return cls(**apply_experience_options(defaults, experience), **others)
@@ -355,7 +357,7 @@ class Connection:
     def canvas_label(self, screen: tuple[int, int] | None = None, scale_factor: int = 1) -> str:
         width, height = self.canvas(screen, scale_factor)
         if self.resolution == RESOLUTION_AUTO:
-            return f"自动（{width}×{height}）"
+            return _("自动（{width}×{height}）").format(width=width, height=height)
         return f"{width}×{height}"
 
     def validate(self) -> dict[str, str]:
@@ -363,14 +365,14 @@ class Connection:
         try:
             host, port = parse_endpoint(self.host, self.port)
             if host != self.host or port != self.port:
-                errors["host"] = "请使用已经解析的主机地址和端口"
+                errors["host"] = _("请使用已经解析的主机地址和端口")
         except ValueError as error:
             errors["host"] = str(error)
         if not 1 <= self.gateway_port <= 65535:
-            errors["gateway_port"] = "网关端口必须在 1–65535 之间"
+            errors["gateway_port"] = _("网关端口必须在 1–65535 之间")
         if self.shared_folder:
             if not re.fullmatch(r"[A-Za-z0-9_-]+", self.share_name):
-                errors["share_name"] = "共享名称只能包含字母、数字、下划线和连字符"
+                errors["share_name"] = _("共享名称只能包含字母、数字、下划线和连字符")
         return errors
 
     def to_dict(self) -> dict[str, Any]:

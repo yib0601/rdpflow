@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to (re)publish, e.g. v0.2.0"
+        description: "Existing tag to (re)publish, e.g. v0.3.0"
         required: true
         type: string
 
@@ -64,6 +64,11 @@ jobs:
       - name: Run unit tests
         run: python -m unittest discover -s tests -t . -v
 
+      - name: CLI answers --version and --help without a display
+        run: |
+          python -m rdpflow --version
+          python -m rdpflow --help
+
   smoke:
     name: GTK smoke test
     runs-on: ubuntu-24.04
@@ -87,86 +92,428 @@ jobs:
           xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" \
             /usr/bin/python3 -m tests.ui_smoke
 
-  build:
-    name: Build ${{ matrix.kind }}
-    runs-on: ubuntu-24.04
+  # ---------------------------------------------------------------------------
+  # Linux 原生包：deb / rpm / 便携包，x86_64 与 arm64 各出一份。
+  #
+  # arm64 走 GitHub 的原生 ARM runner（ubuntu-24.04-arm，公开仓库免费），不用 qemu
+  # 交叉：flatpak-builder 的 --arch 硬性要求宿主兼容（实测 aarch64 目标报
+  # bwrap: execvp cmake: Exec format error），而 arm64 容器里的安装检查也必须真执行。
+  # ---------------------------------------------------------------------------
+  build-linux:
+    name: Build ${{ matrix.kind }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     needs: [verify, test, smoke]
     strategy:
       fail-fast: false
       matrix:
+        # 显式列组合，不用 arch × kind 的笛卡尔积：rpm/deb 是 noarch/all（内容与架构
+        # 无关，产两份会同名覆盖），wheel 是 py3-none-any；只有便携包真的需要两个架构
+        # 各打一次（它带 uname 出来的架构名，且要在各自的解释器上验自检）。
         include:
-          - kind: rpm
-            script: bash build-rpm.sh
-            glob: dist/*.rpm
-          - kind: deb
-            script: bash build-deb.sh
-            glob: dist/*.deb
-          - kind: python
-            script: |
-              python -m pip install --upgrade pip build
-              python -m build
-            glob: |
-              dist/*.whl
-              dist/*.tar.gz
+          - { kind: rpm, arch: x86_64, runner: ubuntu-24.04 }
+          - { kind: deb, arch: x86_64, runner: ubuntu-24.04 }
+          - { kind: python, arch: x86_64, runner: ubuntu-24.04 }
+          - { kind: portable, arch: x86_64, runner: ubuntu-24.04 }
+          - { kind: portable, arch: arm64, runner: ubuntu-24.04-arm }
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
-          # 可复现构建要拿 commit 时间当 SOURCE_DATE_EPOCH。
           fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+        # arm64 的 runner 也支持 setup-python，不需要系统 python3。
 
-      - name: Install tooling
+      # deb 是 Architecture: all、rpm 是 BuildArch: noarch —— 内容与架构无关，
+      # 两个架构各产一份只会得到同名同内容的文件；跨架构的真实性交给 install 作业：
+      # 在 arm64 容器里从 tag 重建、安装、跑 --self-check。
+      - name: Install distro tooling
+        if: matrix.kind != 'python'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            rpm dpkg-dev desktop-file-utils python3
+            rpm dpkg-dev desktop-file-utils python3 python3-gi \
+            gir1.2-gtk-4.0 gir1.2-adw-1
 
-      - name: Build artifact
+      - name: Build deb
+        if: matrix.kind == 'deb'
         env:
           VERSION: ${{ needs.verify.outputs.version }}
-        run: ${{ matrix.script }}
+          # Architecture: all —— 纯 Python，不许按 runner 架构取名，否则同一份内容
+          # 会以 rdpflow_x.y.z-1_amd64.deb 与 _arm64.deb 两个名字进 Release。
+          ARCH: all
+        run: bash build-deb.sh
+
+      - name: Build rpm
+        if: matrix.kind == 'rpm'
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: bash build-rpm.sh
+
+      - name: Build portable tarball
+        if: matrix.kind == 'portable'
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+          ARCH: ${{ matrix.arch }}
+        run: bash build-portable.sh
+
+      - name: Build wheel and sdist
+        if: matrix.kind == 'python'
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      # 自检是唯一能证明"这份产物真能起来"的证据：解包/安装后立刻跑 --self-check，
+      # 无头也能跑（它不创建窗口），缺 typelib 或 FreeRDP 会直接非零退出。
+      - name: Self-check the built deb
+        if: matrix.kind == 'deb'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          # 依赖走真实仓库解析：这一步同时验证了 Depends 写得对不对。
+          sudo apt-get install -y --no-install-recommends ./dist/*.deb
+          rdpflow --version
+          rdpflow --self-check
+          python3 -c 'import sys; sys.path.insert(0, "/usr/lib"); import rdpflow; print(rdpflow.__version__)'
+
+      - name: Self-check the built rpm
+        if: matrix.kind == 'rpm'
+        run: |
+          set -euo pipefail
+          if ! command -v dnf >/dev/null 2>&1; then
+            echo "rpm 已构建，此 runner 不是 Fedora，安装检查在 install 作业里做"
+            rpm -qpi dist/*.rpm
+            exit 0
+          fi
+          sudo dnf install -y dist/*.rpm
+          rdpflow --version
+          rdpflow --self-check
+
+      - name: Self-check the portable tree
+        if: matrix.kind == 'portable'
+        run: |
+          set -euo pipefail
+          cd dist
+          tar xzf ./*.tar.gz
+          cd rdpflow-*-linux-*
+          ./self-check.sh
+          ./bin/rdpflow --version
+
+      - name: Self-check the wheel in a clean venv
+        if: matrix.kind == 'python'
+        run: |
+          set -euo pipefail
+          python -m venv /tmp/venv
+          /tmp/venv/bin/pip install --quiet dist/*.whl
+          /tmp/venv/bin/python -c 'import pathlib, rdpflow
+          package = pathlib.Path(rdpflow.__file__).parent
+          print("installed", rdpflow.__version__, package)
+          for name in ("assets/style.css", "assets/rdpflow.svg", "layout.py", "ui.py", "runtime.py"):
+              assert (package / name).is_file(), name'
+          /tmp/venv/bin/rdpflow --version
 
       - name: Checksum
         run: |
           set -euo pipefail
           cd dist
           shopt -s nullglob
-          files=(*.rpm *.deb *.whl *.tar.gz)
+          files=()
+          case "${{ matrix.kind }}" in
+            rpm) files=(*.rpm) ;;
+            deb) files=(*.deb) ;;
+            portable) files=(rdpflow-*-linux-*.tar.gz) ;;
+            python) files=(*.whl rdpflow-[0-9]*.tar.gz) ;;
+          esac
           printf '本次产物：%s\n' "${files[*]}"
           [ "${#files[@]}" -gt 0 ]
-          sha256sum "${files[@]}" > "SHA256SUMS.${{ matrix.kind }}"
-          cat "SHA256SUMS.${{ matrix.kind }}"
+          sha256sum "${files[@]}" > "SHA256SUMS.${{ matrix.kind }}-${{ matrix.arch }}"
+          cat "SHA256SUMS.${{ matrix.kind }}-${{ matrix.arch }}"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: release-${{ matrix.kind }}
+          name: release-${{ matrix.kind }}-${{ matrix.arch }}
           path: |
-            ${{ matrix.glob }}
-            dist/SHA256SUMS.${{ matrix.kind }}
+            dist/*.rpm
+            dist/*.deb
+            dist/*.whl
+            dist/*.tar.gz
+            dist/SHA256SUMS.*
+          if-no-files-found: error
+          # 各 kind 只产出自己那一种，其余 glob 命中为空是正常的
+          overwrite: true
+
+  # ---------------------------------------------------------------------------
+  # Flatpak：单文件 bundle，x86_64 与 aarch64 各一份。
+  # ---------------------------------------------------------------------------
+  build-flatpak:
+    name: Build flatpak (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    needs: [verify, test, smoke]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Install flatpak tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            flatpak flatpak-builder curl
+
+      - name: Install GNOME runtime and SDK
+        run: |
+          flatpak remote-add --if-not-exists --user flathub \
+            https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y --noninteractive flathub \
+            org.gnome.Platform//51 org.gnome.Sdk//51
+
+      - name: Build bundle
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+          ARCH: ${{ matrix.arch }}
+        run: bash build-flatpak.sh
+
+      # 装进本机再跑一次自检：bundle 里若缺 FreeRDP 或 typelib，这一步才会暴露。
+      - name: Install bundle and self-check
+        run: |
+          set -euo pipefail
+          bundle="$(ls dist/*.flatpak)"
+          flatpak install --user -y --noninteractive "$bundle"
+          flatpak run io.github.rdpflow.RDPFlow --version
+          flatpak run io.github.rdpflow.RDPFlow --self-check
+          flatpak run io.github.rdpflow.RDPFlow --self-check | grep -q '"ok": true'
+          flatpak uninstall --user -y io.github.rdpflow.RDPFlow
+
+      - name: Checksum
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum ./*.flatpak > "SHA256SUMS.flatpak-${{ matrix.arch }}"
+          cat "SHA256SUMS.flatpak-${{ matrix.arch }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-flatpak-${{ matrix.arch }}
+          path: |
+            dist/*.flatpak
+            dist/SHA256SUMS.flatpak-*
           if-no-files-found: error
 
+  # ---------------------------------------------------------------------------
+  # AppImage：单文件、自带运行时（GTK4 / libadwaita / PyGObject / FreeRDP）。
+  #
+  # 在容器里装配：兼容性上限由构建镜像的 glibc 决定，不能用 runner 自带的那套。
+  # 自检必须在「跑之前把 GTK 全套卸掉」的机器上做——否则测的是 runner 的库，
+  # 而不是包里那份，缺文件也照样过。
+  # ---------------------------------------------------------------------------
+  build-appimage:
+    name: Build appimage (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    needs: [verify, test, smoke]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Build AppImage
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+          ARCH: ${{ matrix.arch }}
+        run: bash build-appimage.sh
+
+      # AppImage 的整个卖点是「裸系统也能跑」，所以在另一个容器里验收：
+      # runner 上装着 GTK4 / PyGObject / FreeRDP，就地跑 --self-check 会静默用宿主的库，
+      # 包里少什么都不会红（本地实测过：整套 GTK 都没进包时，本机自检依然通过）。
+      # scripts/verify-appimage.sh 会先断言容器里一个相关包都没有，再跑自检和 GUI 冒烟。
+      - name: Self-check the AppImage on a bare system
+        run: |
+          docker run --rm -v "$PWD/dist:/dist:ro" ubuntu:24.04 true 2>/dev/null || {
+            echo "::error::runner 上没有可用的 docker"; exit 1; }
+          bash scripts/verify-appimage.sh dist/*.AppImage
+
+      - name: Checksum
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum ./*.AppImage > "SHA256SUMS.appimage-${{ matrix.arch }}"
+          cat "SHA256SUMS.appimage-${{ matrix.arch }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-appimage-${{ matrix.arch }}
+          path: |
+            dist/*.AppImage
+            dist/SHA256SUMS.appimage-*
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Windows：MSYS2 UCRT64/CLANGARM64 里 PyInstaller → Inno Setup。
+  # ---------------------------------------------------------------------------
+  build-windows:
+    name: Build windows exe (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    needs: [verify, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: windows-latest
+            msystem: UCRT64
+            prefix: mingw-w64-ucrt-x86_64
+            allowed: x64compatible
+          - arch: arm64
+            runner: windows-11-arm
+            msystem: CLANGARM64
+            prefix: mingw-w64-clang-aarch64
+            allowed: arm64
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          update: true
+          # 包名逐个核对过（MSYS2 的 .files 数据库）：
+          #  - PyGObject 的包名是 python-gobject，没有 pygobject 这个名字；
+          #  - cairo-1.0.typelib 由 gobject-introspection-runtime 提供，不在 cairo 包里；
+          #  - Secret-1.typelib 确实在 libsecret 里（没有它只是无法记住密码，不致命）；
+          #  - freerdp 提供 wfreerdp.exe（Win32 客户端），是本程序在 Windows 上的后端。
+          install: >-
+            git
+            unzip
+            zip
+            ${{ matrix.prefix }}-python
+            ${{ matrix.prefix }}-pyinstaller
+            ${{ matrix.prefix }}-python-gobject
+            ${{ matrix.prefix }}-gobject-introspection-runtime
+            ${{ matrix.prefix }}-python-cairo
+            ${{ matrix.prefix }}-gtk4
+            ${{ matrix.prefix }}-libadwaita
+            ${{ matrix.prefix }}-libsecret
+            ${{ matrix.prefix }}-freerdp
+            ${{ matrix.prefix }}-gdk-pixbuf2
+            ${{ matrix.prefix }}-adwaita-icon-theme
+            ${{ matrix.prefix }}-hicolor-icon-theme
+            ${{ matrix.prefix }}-glib-networking
+
+      - name: Report the MSYS2 environment
+        run: |
+          uname -a
+          python3 -V
+          pkg-config --modversion gtk4 libadwaita-1 2>/dev/null || true
+          which wfreerdp
+          # PyInstaller 的二进制依赖分析只搜 PATH；不在 PATH 里的 DLL 会被静默漏收，
+          # 结果就是用户机器上 status c0000135 启动即死。这里是硬前提。
+          echo "MINGW_PREFIX=$MINGW_PREFIX"
+          case ":$PATH:" in
+            *":$MINGW_PREFIX/bin:"*) echo "PATH ok" ;;
+            *) export PATH="$MINGW_PREFIX/bin:$PATH"; echo "PATH 已补齐（写进 GITHUB_ENV）"
+               echo "$MINGW_PREFIX/bin" >> "$GITHUB_PATH" ;;
+          esac
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          echo "C:\Program Files (x86)\Inno Setup 6" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
+      - name: Build exe
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+          ARCH: ${{ matrix.arch }}
+        run: bash build-windows.sh
+
+      - name: Smoke test the installer is a valid PE
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem dist/rdpflow-*-windows-*.exe | Select-Object -First 1
+          $bytes = [System.IO.File]::ReadAllBytes($exe.FullName)[0..1]
+          if ($bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) {
+            throw "$($exe.Name) 不是合法 PE 文件"
+          }
+          Write-Host "$($exe.Name) $([math]::Round($exe.Length/1MB,1)) MB"
+
+      - name: Checksum
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum ./*-windows-*.exe ./*-windows-*-portable.zip > "SHA256SUMS.windows-${{ matrix.arch }}"
+          cat "SHA256SUMS.windows-${{ matrix.arch }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-${{ matrix.arch }}
+          path: |
+            dist/*-windows-*.exe
+            dist/*-windows-*-portable.zip
+            dist/SHA256SUMS.windows-*
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # 真实安装检查：在目标发行版容器里装、导入、卸载。
+  # ---------------------------------------------------------------------------
   install:
-    name: Install check (${{ matrix.distro }})
-    runs-on: ubuntu-24.04
-    needs: [verify, build]
+    name: Install check (${{ matrix.distro }} ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    needs: [verify, build-linux]
     strategy:
       fail-fast: false
       matrix:
         include:
           - distro: ubuntu
+            arch: x86_64
+            runner: ubuntu-24.04
             image: ubuntu:24.04
             query: dpkg -s rdpflow
             bindir: /usr/lib
           - distro: fedora
+            arch: x86_64
+            runner: ubuntu-24.04
+            image: fedora:latest
+            query: rpm -q rdpflow
+            bindir: /usr/libexec
+          - distro: ubuntu
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            image: ubuntu:24.04
+            query: dpkg -s rdpflow
+            bindir: /usr/lib
+          - distro: fedora
+            arch: arm64
+            runner: ubuntu-24.04-arm
             image: fedora:latest
             query: rpm -q rdpflow
             bindir: /usr/libexec
     container: ${{ matrix.image }}
-    # 容器里的默认 shell 是 sh，`set -euo pipefail` 会直接报 Illegal option。
+    # Fedora 容器里要 rpmbuild 自己解析 BuildRequires，必须把全局的 --nodeps 关掉；
+    # Ubuntu 容器里没装 Fedora 的包名，仍然要靠 --nodeps。
+    env:
+      RPM_BUILD_NODEPS: ${{ matrix.distro == 'fedora' && '' || '1' }}
     defaults:
       run:
         shell: bash
@@ -192,8 +539,6 @@ jobs:
           if [ "${{ matrix.distro }}" = "ubuntu" ]; then
             bash build-deb.sh
           else
-            # 容器里就是 Fedora：让 rpmbuild 自己去解析 BuildRequires。
-            unset RPM_BUILD_NODEPS
             bash build-rpm.sh
           fi
 
@@ -201,7 +546,6 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ matrix.distro }}" = "ubuntu" ]; then
-            # apt 只认 ./ 开头的本地路径，裸 glob 会报 Unsupported file。
             cd dist && apt-get install -y ./*.deb
           else
             dnf install -y dist/*.rpm
@@ -209,12 +553,16 @@ jobs:
           ${{ matrix.query }}
           test -x /usr/bin/rdpflow
           test -f ${{ matrix.bindir }}/rdpflow/layout.py
+          test -f ${{ matrix.bindir }}/rdpflow/runtime.py
 
-      - name: Installed package imports GTK and reports its version
+      - name: Installed package answers --version and --self-check
         env:
           XDG_CONFIG_HOME: /tmp/xdg
         run: |
           set -euo pipefail
+          rdpflow --version
+          # FreeRDP 由包依赖装进来；自检在这里必须全绿。
+          rdpflow --self-check
           python3 - <<'PY'
           import sys
           sys.path.insert(0, "${{ matrix.bindir }}")
@@ -224,10 +572,13 @@ jobs:
           print("gtk import ok:", rdpflow.ui.__name__)
           PY
 
+  # ---------------------------------------------------------------------------
+  # 汇总
+  # ---------------------------------------------------------------------------
   publish:
     name: Publish GitHub Release
     runs-on: ubuntu-24.04
-    needs: [verify, build, install]
+    needs: [verify, build-linux, build-flatpak, build-appimage, build-windows, install]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -246,9 +597,14 @@ jobs:
           mkdir -p release
           find artifacts -type f \( \
                 -name '*.rpm' -o -name '*.deb' -o -name '*.whl' \
-                -o -name '*.tar.gz' -o -name '*.sha256' \) \
+                -o -name '*.flatpak' -o -name '*.AppImage' -o -name '*windows-*.exe' \
+                -o -name '*windows-*portable.zip' -o -name '*linux-*.tar.gz' \
+                -o -name 'rdpflow-*.tar.gz' \) \
               -exec cp -v {} release/ \;
+          # 便携包与 sdist 都是 .tar.gz，同名前缀会互相覆盖——按内容区分：
+          # sdist 是 rdpflow-<ver>.tar.gz，便携包是 rdpflow-<ver>-linux-<arch>.tar.gz。
           cd release
+          ls -la
           rm -f SHA256SUMS SHA256SUMS.tmp
           find . -maxdepth 1 -type f ! -name 'SHA256SUMS*' -printf '%f\n' \
             | sort | xargs -r sha256sum > SHA256SUMS.tmp
@@ -256,40 +612,62 @@ jobs:
           cat SHA256SUMS
 
       - name: Extract release notes from CHANGELOG
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
         run: |
           set -euo pipefail
-          version="${{ needs.verify.outputs.version }}"
-          awk -v ver="$version" '
+          awk -v ver="$VERSION" '
             $0 ~ "^## \\[" ver "\\]" { flag=1; next }
             flag && /^## \[/ { exit }
             flag { print }
           ' CHANGELOG.md > notes.md
           if [ ! -s notes.md ]; then
-            echo "RDPFlow $version" > notes.md
+            echo "RDPFlow $VERSION" > notes.md
           fi
-          {
-            echo "## 安装"
-            echo
-            echo '**Fedora / RHEL:**'
-            echo '```bash'
-            echo "sudo dnf install ./rdpflow-${version}-1.el9.noarch.rpm"
-            echo '```'
-            echo
-            echo '**Debian / Ubuntu:**'
-            echo '```bash'
-            echo "sudo apt install ./rdpflow_${version}-1_all.deb"
-            echo '```'
-            echo
-            echo '**Python 包：**'
-            echo '```bash'
-            echo "pip install rdpflow-${version}-py3-none-any.whl"
-            echo '```'
-            echo
-            echo "全部产物校验：\`sha256sum -c SHA256SUMS\`"
-            echo
-            echo "---"
-            echo
-          } > header.md
+          # 安装说明用 python 生成：里面全是 Markdown 代码栅栏（三个反引号），
+          # 在 bash 里无论单引号还是双引号都别扭 —— 单引号触发 SC2016，双引号更糟：
+          # 反引号会被当成命令替换，`bash` 报 command not found（实测）。
+          python3 - "$VERSION" <<'PY' > header.md
+          import sys
+
+          version = sys.argv[1]
+          fence = "`" * 3
+          blocks = [
+              ("## 安装", ""),
+              ("**Fedora / RHEL（x86_64 / aarch64）**", f"sudo dnf install ./rdpflow-{version}-1.el9.noarch.rpm"),
+              ("**Debian / Ubuntu（amd64 / arm64）**", f"sudo apt install ./rdpflow_{version}-1_all.deb"),
+              ("**Flatpak（x86_64 / aarch64）**", f"flatpak install --user ./io.github.rdpflow.RDPFlow-{version}-x86_64.flatpak"),
+              ("**AppImage（x86_64 / aarch64，自带 GTK4 与 FreeRDP）**",
+               f"chmod +x ./io.github.rdpflow.RDPFlow-{version}-x86_64.AppImage\n"
+               f"./io.github.rdpflow.RDPFlow-{version}-x86_64.AppImage --self-check"),
+              ("**便携包（解压即用，Linux x86_64 / arm64）**",
+               f"tar xzf rdpflow-{version}-linux-x86_64.tar.gz\n"
+               f"./rdpflow-{version}-linux-x86_64/bin/rdpflow --self-check"),
+              ("**Python 包**", f"pip install rdpflow-{version}-py3-none-any.whl"),
+          ]
+          for title, command in blocks:
+              print(title)
+              if command:
+                  print(fence + "bash")
+                  print(command)
+                  print(fence)
+              print()
+
+          print("**Windows（x86_64 / arm64）**")
+          print()
+          print(f"下载 `rdpflow-{version}-windows-<arch>.exe` 直接安装；不想安装就用")
+          print("`-portable.zip` 解压后运行 `RDPFlow.exe`。Windows 版需要系统里能找")
+          print("到 `wfreerdp.exe`（FreeRDP 3 的 Win32 客户端），或用 `RDPFLOW_FREERDP`")
+          print("指定它的完整路径。")
+          print()
+          print("任意产物都可先自检：`rdpflow --self-check`（输出 JSON，退出码非零表示")
+          print("环境缺依赖，例如缺 GTK typelib 或 FreeRDP）。")
+          print()
+          print("全部产物校验：`sha256sum -c SHA256SUMS`")
+          print()
+          print("---")
+          print()
+          PY
           cat header.md notes.md > release-notes.md
           cat release-notes.md
 
@@ -319,7 +697,6 @@ jobs:
       - name: Every expected asset is attached and non-empty
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # gh 默认从 git remote 里找仓库；这个 job 不 checkout，必须显式给。
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.verify.outputs.tag }}
           VERSION: ${{ needs.verify.outputs.version }}
@@ -339,6 +716,14 @@ jobs:
           for want in \
               "rdpflow-${VERSION}-1.el9.noarch.rpm" \
               "rdpflow_${VERSION}-1_all.deb" \
+              "io.github.rdpflow.RDPFlow-${VERSION}-x86_64.flatpak" \
+              "io.github.rdpflow.RDPFlow-${VERSION}-aarch64.flatpak" \
+              "io.github.rdpflow.RDPFlow-${VERSION}-x86_64.AppImage" \
+              "io.github.rdpflow.RDPFlow-${VERSION}-aarch64.AppImage" \
+              "rdpflow-${VERSION}-linux-x86_64.tar.gz" \
+              "rdpflow-${VERSION}-linux-arm64.tar.gz" \
+              "rdpflow-${VERSION}-windows-x86_64.exe" \
+              "rdpflow-${VERSION}-windows-arm64.exe" \
               "rdpflow-${VERSION}-py3-none-any.whl" \
               "rdpflow-${VERSION}.tar.gz" \
               "SHA256SUMS"; do

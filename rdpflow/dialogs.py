@@ -8,6 +8,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib, Gtk
 
+from .i18n import _
 from .layout import dialog_height, dialog_width
 from .models import (
     AUDIO_MODES,
@@ -30,29 +31,29 @@ from .models import (
 
 
 EXPERIENCE_LABELS = {
-    "quality": "画面预设",
-    "resolution": "窗口分辨率",
-    "desktop_scale": "远程桌面缩放",
-    "display_mode": "显示方式",
-    "dynamic_resolution": "动态分辨率",
-    "smart_sizing": "智能缩放",
-    "clipboard": "共享剪贴板",
-    "auto_reconnect": "断线自动重连",
+    "quality": _("画面预设"),
+    "resolution": _("窗口分辨率"),
+    "desktop_scale": _("远程桌面缩放"),
+    "display_mode": _("显示方式"),
+    "dynamic_resolution": _("动态分辨率"),
+    "smart_sizing": _("智能缩放"),
+    "clipboard": _("共享剪贴板"),
+    "auto_reconnect": _("断线自动重连"),
 }
 
 
 QUALITY_LABELS = {
-    "balanced": "平衡（推荐）",
-    "performance": "流畅优先",
-    "quality": "清晰优先",
-    "compatibility": "兼容模式",
+    "balanced": _("平衡（推荐）"),
+    "performance": _("流畅优先"),
+    "quality": _("清晰优先"),
+    "compatibility": _("兼容模式"),
 }
-DISPLAY_LABELS = {"window": "窗口", "fullscreen": "单屏全屏", "monitors": "所有显示器"}
-CERTIFICATE_LABELS = {"tofu": "首次信任（推荐）", "deny": "严格校验", "ignore": "忽略校验（不推荐）"}
-AUDIO_LABELS = {"redirect": "在本机播放", "local": "在远程播放", "none": "关闭音频"}
-RESOLUTION_LABELS = {RESOLUTION_AUTO: "自动（跟随本机屏幕）", "1280x720": "1280×720", "1600x900": "1600×900", "1920x1080": "1920×1080", "2560x1440": "2560×1440", "3840x2160": "3840×2160"}
+DISPLAY_LABELS = {"window": _("窗口"), "fullscreen": _("单屏全屏"), "monitors": _("所有显示器")}
+CERTIFICATE_LABELS = {"tofu": _("首次信任（推荐）"), "deny": _("严格校验"), "ignore": _("忽略校验（不推荐）")}
+AUDIO_LABELS = {"redirect": _("在本机播放"), "local": _("在远程播放"), "none": _("关闭音频")}
+RESOLUTION_LABELS = {RESOLUTION_AUTO: _("自动（跟随本机屏幕）"), "1280x720": "1280×720", "1600x900": "1600×900", "1920x1080": "1920×1080", "2560x1440": "2560×1440", "3840x2160": "3840×2160"}
 DESKTOP_SCALE_LABELS = {
-    DESKTOP_SCALE_AUTO: "自动（跟随本机）",
+    DESKTOP_SCALE_AUTO: _("自动（跟随本机）"),
     "100": "100%",
     "125": "125%",
     "150": "150%",
@@ -62,7 +63,7 @@ DESKTOP_SCALE_LABELS = {
 
 
 def option_label(field_name: str, value: object) -> str:
-    """把体验选项的原始值转成界面文案，默认值提示与摘要卡片共用同一套映射。"""
+    """把配置项的原始值转成界面文案，下拉项显示与回填反查共用同一套映射。"""
     if field_name == "quality":
         return QUALITY_LABELS.get(str(value), str(value))
     if field_name == "display_mode":
@@ -74,18 +75,18 @@ def option_label(field_name: str, value: object) -> str:
     if field_name == "desktop_scale":
         return DESKTOP_SCALE_LABELS.get(str(value), str(value))
     if isinstance(value, bool):
-        return "开启" if value else "关闭"
+        return _("开启") if value else _("关闭")
     return str(value)
 
 
-def default_hint(field_name: str, defaults: dict[str, object]) -> str:
-    return f"默认：{option_label(field_name, defaults.get(field_name))}"
+# 密码库缺失时唯一需要解释的一句话：正常情况下「记住密码」不加任何副标题。
+KEYRING_UNAVAILABLE_HINT = _("这台机器没有可用的密码库，密码只能每次手动输入。")
 
 
 class ExperienceRows:
-    """「连接体验」这一组控件，详情页与编辑器共用同一套构造与互斥规则。
+    """「连接配置」这一组控件，详情页与编辑器共用同一套构造与互斥规则。
 
-    放在 dialogs.py：它只负责把模型里的体验字段变成可交互控件，
+    放在 dialogs.py：它只负责把模型里的配置字段变成可交互控件，
     互斥判定仍由 models.toggle_switch 提供，UI 层不复制一份规则。
     """
 
@@ -95,11 +96,14 @@ class ExperienceRows:
         self.switches: dict[str, Adw.SwitchRow] = {}
         self.combos: dict[str, Adw.ComboRow] = {}
 
-    def switch(self, field_name: str, title: str, subtitle: str = "") -> Adw.SwitchRow:
+    def switch(self, field_name: str, title: str, tooltip: str = "") -> Adw.SwitchRow:
+        # 不写副标题：开关当前值就在开关上，默认值由「恢复全局默认」负责，
+        # 每行再写一句「默认：开启」等于把同一件事说两遍。
+        # 确实要说清的（互斥规则、重试上限）挂 tooltip：停上去才出现，不占版面。
         row = Adw.SwitchRow()
         row.set_title(title)
-        hint = default_hint(field_name, self.defaults)
-        row.set_subtitle(f"{hint} · {subtitle}" if subtitle else hint)
+        if tooltip:
+            row.set_tooltip_text(tooltip)
         row.set_active(bool(self.options.get(field_name)))
         self.switches[field_name] = row
         return row
@@ -112,8 +116,6 @@ class ExperienceRows:
         labels: dict[str, str],
     ) -> Adw.ComboRow:
         row = combo_row(title, values, labels, str(self.options.get(field_name)))
-        row.set_subtitle(default_hint(field_name, self.defaults))
-        row.set_use_subtitle(True)
         self.combos[field_name] = row
         return row
 
@@ -200,15 +202,17 @@ class QuickConnectDialog(Adw.Dialog):
         self,
         on_connect: Callable[[Connection, str | None, bool], None],
         defaults: dict[str, object] | None = None,
+        keyring_available: bool = True,
     ) -> None:
         super().__init__()
         self.on_connect = on_connect
+        self.keyring_available = keyring_available
         self.defaults = apply_experience_options(defaults or default_experience_options())
         self.set_content_width(dialog_width(500))
         self.set_content_height(dialog_height(470))
 
         toolbar = Adw.ToolbarView()
-        toolbar.add_top_bar(header_bar("快速连接"))
+        toolbar.add_top_bar(header_bar(_("快速连接")))
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
         content.set_margin_top(24)
         content.set_margin_bottom(24)
@@ -218,7 +222,7 @@ class QuickConnectDialog(Adw.Dialog):
         self.set_child(toolbar)
 
         intro = Gtk.Label(
-            label="输入主机即可开始，也可以使用 user@host 的格式。",
+            label=_("输入主机即可开始，也可以使用 user@host 的格式。"),
             xalign=0,
         )
         intro.add_css_class("muted")
@@ -230,21 +234,22 @@ class QuickConnectDialog(Adw.Dialog):
         rows.set_selection_mode(Gtk.SelectionMode.NONE)
         content.append(rows)
         self.host = Adw.EntryRow()
-        self.host.set_title("远程主机（IP:端口）")
+        self.host.set_title(_("远程主机（IP:端口）"))
         self.host.connect("entry-activated", lambda *_: self.connect())
         rows.append(self.host)
 
         self.username = Adw.EntryRow()
-        self.username.set_title("用户名（可选）")
+        self.username.set_title(_("用户名（可选）"))
         rows.append(self.username)
 
         self.password = Adw.PasswordEntryRow()
-        self.password.set_title("密码")
+        self.password.set_title(_("密码"))
         rows.append(self.password)
 
         self.save = Adw.SwitchRow()
-        self.save.set_title("保存为常用连接")
-        self.save.set_subtitle("密码只会保存在系统钥匙串中")
+        self.save.set_title(_("保存为常用连接"))
+        if not keyring_available:
+            self.save.set_subtitle(KEYRING_UNAVAILABLE_HINT)
         self.save.set_active(False)
         rows.append(self.save)
 
@@ -253,7 +258,7 @@ class QuickConnectDialog(Adw.Dialog):
         self.error.set_visible(False)
         content.append(self.error)
 
-        button = Gtk.Button(label="连接")
+        button = Gtk.Button(label=_("连接"))
         button.add_css_class("suggested-action")
         button.add_css_class("pill")
         button.connect("clicked", lambda *_: self.connect())
@@ -280,7 +285,7 @@ class QuickConnectDialog(Adw.Dialog):
             host=host,
             port=port,
             username=username,
-            remember_password=self.save.get_active(),
+            remember_password=self.keyring_available and self.save.get_active(),
         )
         password = self.password.get_text()
         self.on_connect(profile, password, self.save.get_active())
@@ -304,7 +309,7 @@ class PasswordDialog(Adw.Dialog):
         self.set_content_height(dialog_height(300))
 
         toolbar = Adw.ToolbarView()
-        toolbar.add_top_bar(header_bar("输入登录密码"))
+        toolbar.add_top_bar(header_bar(_("输入登录密码")))
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
         content.set_margin_top(24)
         content.set_margin_bottom(24)
@@ -313,10 +318,10 @@ class PasswordDialog(Adw.Dialog):
         toolbar.set_content(content)
         self.set_child(toolbar)
 
-        label = Gtk.Label(label=f"连接到 {connection.endpoint}", xalign=0)
+        label = Gtk.Label(label=_("连接到 {endpoint}").format(endpoint=connection.endpoint), xalign=0)
         label.add_css_class("title-3")
         content.append(label)
-        subtitle = Gtk.Label(label="密码不会写入配置文件或进程命令行。", xalign=0)
+        subtitle = Gtk.Label(label=_("密码不会写入配置文件或进程命令行。"), xalign=0)
         subtitle.add_css_class("muted")
         content.append(subtitle)
 
@@ -325,11 +330,11 @@ class PasswordDialog(Adw.Dialog):
         rows.set_selection_mode(Gtk.SelectionMode.NONE)
         content.append(rows)
         self.password = Adw.PasswordEntryRow()
-        self.password.set_title("密码")
+        self.password.set_title(_("密码"))
         self.password.connect("entry-activated", lambda *_: self.submit())
         rows.append(self.password)
 
-        button = Gtk.Button(label="连接")
+        button = Gtk.Button(label=_("连接"))
         button.add_css_class("suggested-action")
         button.connect("clicked", lambda *_: self.submit())
         content.append(button)
@@ -349,10 +354,12 @@ class ConnectionEditorDialog(Adw.Dialog):
         on_save: Callable[[Connection, str | None], None],
         defaults: dict[str, object] | None = None,
         on_save_defaults: Callable[[dict[str, object]], None] | None = None,
+        keyring_available: bool = True,
     ) -> None:
         super().__init__()
         self.connection = connection
         self.has_saved_password = has_saved_password
+        self.keyring_available = keyring_available
         self.on_save = on_save
         self.defaults = apply_experience_options(defaults or default_experience_options())
         self.on_save_defaults = on_save_defaults
@@ -361,11 +368,11 @@ class ConnectionEditorDialog(Adw.Dialog):
         self.set_content_height(dialog_height(760))
 
         toolbar = Adw.ToolbarView()
-        bar = header_bar("编辑连接" if connection.host else "新建连接")
-        cancel = Gtk.Button(label="取消")
+        bar = header_bar(_("编辑连接") if connection.host else _("新建连接"))
+        cancel = Gtk.Button(label=_("取消"))
         cancel.connect("clicked", lambda *_: self.close())
         bar.pack_start(cancel)
-        save = Gtk.Button(label="保存")
+        save = Gtk.Button(label=_("保存"))
         save.add_css_class("suggested-action")
         save.connect("clicked", lambda *_: self.validate_and_save())
         bar.pack_end(save)
@@ -381,94 +388,107 @@ class ConnectionEditorDialog(Adw.Dialog):
         scroll.set_child(page)
 
         general = Adw.PreferencesGroup()
-        general.set_title("连接")
-        general.set_description("常用信息保存后，下次只需一次点击。")
+        general.set_title(_("连接"))
+        general.set_description(_("常用信息保存后，下次只需一次点击。"))
         page.add(general)
         self.name = Adw.EntryRow()
-        self.name.set_title("名称")
+        self.name.set_title(_("名称"))
         self.name.set_text(connection.name if connection.host else "")
         general.add(self.name)
         self.host = Adw.EntryRow()
-        self.host.set_title("远程主机（IP:端口 / IPv6）")
+        self.host.set_title(_("远程主机（IP:端口 / IPv6）"))
         self.host.set_text(connection.host)
         general.add(self.host)
-        self.port = spin_row("端口", connection.port, 1, 65535)
+        self.port = spin_row(_("端口"), connection.port, 1, 65535)
         general.add(self.port)
         self.username = Adw.EntryRow()
-        self.username.set_title("用户名")
+        self.username.set_title(_("用户名"))
         self.username.set_text(connection.username)
         general.add(self.username)
         self.domain = Adw.EntryRow()
-        self.domain.set_title("域（可选）")
+        self.domain.set_title(_("域（可选）"))
         self.domain.set_text(connection.domain)
         general.add(self.domain)
         self.password = Adw.PasswordEntryRow()
-        self.password.set_title("密码")
-        self.password.set_tooltip_text("留空则保留已保存密码" if has_saved_password else "可选，连接时再输入")
+        self.password.set_title(_("密码"))
+        self.password.set_tooltip_text(
+            _("留空表示不改动已记住的密码") if has_saved_password else _("可以先留空，连接时再输入")
+        )
         general.add(self.password)
         self.remember_password = Adw.SwitchRow()
-        self.remember_password.set_title("保存到系统钥匙串")
-        self.remember_password.set_active(connection.remember_password and has_saved_password)
+        self.remember_password.set_title(_("记住密码"))
+        # 常规情况不加副标题：这是个人人都会的开关，说明反而占地方。
+        # 只有密码库缺失、这个开关实际失效时才写一行原因。
+        if not keyring_available:
+            self.remember_password.set_subtitle(KEYRING_UNAVAILABLE_HINT)
+        self.remember_password.set_sensitive(keyring_available)
+        self.remember_password.set_active(
+            keyring_available and connection.remember_password and has_saved_password
+        )
         general.add(self.remember_password)
 
         experience = Adw.PreferencesGroup()
-        experience.set_title("连接体验")
+        experience.set_title(_("连接配置"))
         experience.set_description(
-            "各项副标题就是它的默认值；改完可「恢复全局默认」，或把当前配置存成新的默认。"
+            _("改完可「恢复全局默认」，或把当前配置存成新的默认。")
         )
         page.add(experience)
         self.experience_rows = ExperienceRows(connection.experience_options(), self.defaults)
         self.quality = self.experience_rows.combo(
-            "quality", "画面预设", QUALITY_PRESETS, QUALITY_LABELS
+            "quality", _("画面预设"), QUALITY_PRESETS, QUALITY_LABELS
         )
         experience.add(self.quality)
         self.resolution = self.experience_rows.combo(
-            "resolution", "窗口分辨率", RESOLUTIONS, RESOLUTION_LABELS
+            "resolution", _("窗口分辨率"), RESOLUTIONS, RESOLUTION_LABELS
         )
         experience.add(self.resolution)
         self.desktop_scale = self.experience_rows.combo(
-            "desktop_scale", "远程桌面缩放", DESKTOP_SCALES, DESKTOP_SCALE_LABELS
+            "desktop_scale", _("远程桌面缩放"), DESKTOP_SCALES, DESKTOP_SCALE_LABELS
         )
         experience.add(self.desktop_scale)
         self.display_mode = self.experience_rows.combo(
-            "display_mode", "显示方式", DISPLAY_MODES, DISPLAY_LABELS
+            "display_mode", _("显示方式"), DISPLAY_MODES, DISPLAY_LABELS
         )
         experience.add(self.display_mode)
         self.dynamic_resolution = self.experience_rows.switch(
             "dynamic_resolution",
-            "动态分辨率",
-            "窗口变化时同步远程分辨率",
+            _("动态分辨率"),
+            _("窗口变化时同步远程分辨率"),
         )
         experience.add(self.dynamic_resolution)
         self.smart_sizing = self.experience_rows.switch(
             "smart_sizing",
-            "智能缩放",
-            "缩放画面适配窗口；两项同时开启时以动态分辨率生效（FreeRDP 不接受并存）",
+            _("智能缩放"),
+            _("缩放画面适配窗口；与动态分辨率互斥，同时开启时以动态分辨率生效"),
         )
         experience.add(self.smart_sizing)
-        self.clipboard = self.experience_rows.switch("clipboard", "共享剪贴板")
+        self.clipboard = self.experience_rows.switch("clipboard", _("共享剪贴板"))
         experience.add(self.clipboard)
-        self.auto_reconnect = self.experience_rows.switch("auto_reconnect", "断线自动重连")
+        self.auto_reconnect = self.experience_rows.switch(
+            "auto_reconnect", _("断线自动重连"), _("断开后自动重试，最多 5 次")
+        )
         experience.add(self.auto_reconnect)
-        self.audio_mode = combo_row("音频", AUDIO_MODES, AUDIO_LABELS, connection.audio_mode)
+        self.audio_mode = combo_row(_("音频"), AUDIO_MODES, AUDIO_LABELS, connection.audio_mode)
         experience.add(self.audio_mode)
         self.wallpaper = Adw.SwitchRow()
-        self.wallpaper.set_title("显示远程壁纸")
+        self.wallpaper.set_title(_("显示远程壁纸"))
         self.wallpaper.set_active(connection.wallpaper)
         experience.add(self.wallpaper)
 
         restore = Adw.ActionRow()
-        restore.set_title("恢复全局默认")
+        restore.set_title(_("恢复全局默认"))
         restore.set_subtitle(
-            f"把上面 {len(EXPERIENCE_FIELDS)} 项还原成当前默认值，其余字段保持不变"
+            _("把上面 {count} 项还原成当前默认值，其余字段保持不变").format(
+                count=len(EXPERIENCE_FIELDS)
+            )
         )
         restore.set_icon_name("edit-undo-symbolic")
         restore.set_activatable(True)
         restore.connect("activated", lambda *_: self.restore_defaults())
         experience.add(restore)
         self.make_default = Adw.SwitchRow()
-        self.make_default.set_title("保存为新的全局默认")
-        self.make_default.set_subtitle("之后新建的连接都用这套体验配置")
+        self.make_default.set_title(_("保存为新的全局默认"))
+        self.make_default.set_subtitle(_("之后新建的连接都用这套配置"))
         self.make_default.set_active(False)
         experience.add(self.make_default)
 
@@ -482,46 +502,46 @@ class ConnectionEditorDialog(Adw.Dialog):
         self._update_hint()
 
         resources = Adw.PreferencesGroup()
-        resources.set_title("本地资源")
+        resources.set_title(_("本地资源"))
         page.add(resources)
         self.shared_folder = Adw.EntryRow()
-        self.shared_folder.set_title("共享目录（可选）")
+        self.shared_folder.set_title(_("共享目录（可选）"))
         self.shared_folder.set_text(connection.shared_folder)
         browse = Gtk.Button(icon_name="folder-open-symbolic")
-        browse.set_tooltip_text("选择目录")
+        browse.set_tooltip_text(_("选择目录"))
         browse.add_css_class("flat")
         browse.connect("clicked", lambda *_: self.choose_folder())
         self.shared_folder.add_suffix(browse)
         resources.add(self.shared_folder)
         self.share_name = Adw.EntryRow()
-        self.share_name.set_title("远程共享名称")
+        self.share_name.set_title(_("远程共享名称"))
         self.share_name.set_text(connection.share_name)
         resources.add(self.share_name)
 
         gateway = Adw.PreferencesGroup()
-        gateway.set_title("RD 网关（可选）")
-        gateway.set_description("适用于 Remote Desktop Gateway 或堡垒机")
+        gateway.set_title(_("RD 网关（可选）"))
+        gateway.set_description(_("适用于 Remote Desktop Gateway 或堡垒机"))
         page.add(gateway)
         self.gateway_host = Adw.EntryRow()
-        self.gateway_host.set_title("网关地址")
+        self.gateway_host.set_title(_("网关地址"))
         self.gateway_host.set_text(connection.gateway_host)
         gateway.add(self.gateway_host)
-        self.gateway_port = spin_row("网关端口", connection.gateway_port, 1, 65535)
+        self.gateway_port = spin_row(_("网关端口"), connection.gateway_port, 1, 65535)
         gateway.add(self.gateway_port)
         self.gateway_username = Adw.EntryRow()
-        self.gateway_username.set_title("网关用户名")
+        self.gateway_username.set_title(_("网关用户名"))
         self.gateway_username.set_text(connection.gateway_username)
         gateway.add(self.gateway_username)
         self.gateway_domain = Adw.EntryRow()
-        self.gateway_domain.set_title("网关域")
+        self.gateway_domain.set_title(_("网关域"))
         self.gateway_domain.set_text(connection.gateway_domain)
         gateway.add(self.gateway_domain)
 
         security = Adw.PreferencesGroup()
-        security.set_title("证书")
+        security.set_title(_("证书"))
         page.add(security)
         self.certificate_mode = combo_row(
-            "证书校验", CERTIFICATE_MODES, CERTIFICATE_LABELS, connection.certificate_mode
+            _("证书校验"), CERTIFICATE_MODES, CERTIFICATE_LABELS, connection.certificate_mode
         )
         security.add(self.certificate_mode)
 
@@ -534,7 +554,7 @@ class ConnectionEditorDialog(Adw.Dialog):
 
     def choose_folder(self) -> None:
         dialog = Gtk.FileDialog()
-        dialog.set_title("选择要共享的目录")
+        dialog.set_title(_("选择要共享的目录"))
 
         def finished(file_dialog: Gtk.FileDialog, result: Gio.AsyncResult) -> None:
             try:
@@ -567,8 +587,9 @@ class ConnectionEditorDialog(Adw.Dialog):
         """
         if disabled:
             self.hint.set_label(
-                f"已联动关闭{EXPERIENCE_LABELS.get(disabled, disabled)}："
-                "FreeRDP 不接受动态分辨率与智能缩放同时下发。"
+                _("已联动关闭{name}：FreeRDP 不接受动态分辨率与智能缩放同时下发。").format(
+                    name=EXPERIENCE_LABELS.get(disabled, disabled)
+                )
             )
             self.hint.set_visible(True)
             return
@@ -578,8 +599,10 @@ class ConnectionEditorDialog(Adw.Dialog):
             return
         effective = effective_scaling(self.experience_rows.options)
         self.hint.set_label(
-            f"{EXPERIENCE_LABELS.get(overridden[0], overridden[0])}当前未生效："
-            f"FreeRDP 不接受它与{EXPERIENCE_LABELS.get(effective, effective)}同时下发。"
+            _("{name}当前未生效：FreeRDP 不接受它与{partner}同时下发。").format(
+                name=EXPERIENCE_LABELS.get(overridden[0], overridden[0]),
+                partner=EXPERIENCE_LABELS.get(effective, effective),
+            )
         )
         self.hint.set_visible(True)
 
@@ -616,7 +639,7 @@ class ConnectionEditorDialog(Adw.Dialog):
         self._update_hint()
 
     def experience_payload(self) -> dict[str, object]:
-        """当前体验项 + 不在默认值集合里的音频与壁纸，一次性交给保存流程。"""
+        """当前配置项 + 不在默认值集合里的音频与壁纸，一次性交给保存流程。"""
         payload = dict(self.experience_rows.options)
         payload["audio_mode"] = AUDIO_MODES[self.audio_mode.get_selected()]
         payload["wallpaper"] = self.wallpaper.get_active()

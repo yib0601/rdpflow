@@ -1,0 +1,9 @@
+# actionlint 的 runner 标签白名单。
+#
+# windows-11-arm 是 GitHub 官方 arm64 Windows runner（见
+# https://docs.github.com/en/actions/reference/runners/github-hosted-runners 的
+# 标准 runner 表），但 actionlint 内置的标签表还没跟上，会误报 unknown label。
+# 这里显式声明它，让 lint 只报真问题。
+self-hosted-runner:
+  labels:
+    - windows-11-arm

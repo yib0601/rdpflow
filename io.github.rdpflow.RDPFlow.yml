@@ -1,0 +1,140 @@
+# RDPFlow 的 Flatpak 清单。
+#
+# 运行时只提供 GTK/PyGObject，FreeRDP 不在 org.gnome.Platform 里（实测 51 的
+# /usr/bin 下没有 xfreerdp3/xfreerdp/wfreerdp），因此清单自己编译它——只编 X11
+# 客户端那一个可执行文件，服务端、代理、SDL 客户端全部关掉，构建时间从十几分钟
+# 压到三四分钟。
+#
+# 构建：bash build-flatpak.sh
+app-id: io.github.rdpflow.RDPFlow
+runtime: org.gnome.Platform
+runtime-version: "51"
+sdk: org.gnome.Sdk
+command: rdpflow
+
+# 只保留真正需要的权限：远程桌面必须联网；显示走 Wayland 优先、X11 兜底；
+# 剪贴板随显示协议走；/drive 共享目录需要访问用户选中的路径，用 home 权限最省事。
+finish-args:
+  - --share=network
+  - --share=ipc
+  # Wayland 只给 GTK 窗口用。FreeRDP 的 X11 客户端（xfreerdp3）必须有真的 X socket：
+  # 实测矩阵里 --socket=fallback-x11 在 Wayland 会话下把 $DISPLAY 抹成空，xfreerdp3
+  # 一起来就报 [xf_setup_x11]: failed to open display。wayland 与 x11 两条同时给才对。
+  - --socket=wayland
+  - --socket=x11
+  - --device=dri
+  # /drive: 共享目录要用用户选中的绝对路径；纯 portal 路径（/run/user/<uid>/doc/...）
+  # 需要额外翻译，否则 freerdp.py 的 is_dir() 会直接报"共享目录不存在"。
+  - --filesystem=home
+  - --talk-name=org.freedesktop.secrets
+  - --socket=pulseaudio
+  - --metadata=X-DConf=migrate-path=/io/github/rdpflow/RDPFlow/
+
+cleanup:
+  - /include
+  - /lib/cmake
+  - /lib/pkgconfig
+  - /share/man
+  - /share/doc
+  - /share/aclocal
+  - "*.la"
+  - "*.a"
+
+modules:
+  # ---- FreeRDP：只出 xfreerdp3 ------------------------------------------------
+  - name: freerdp
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      # 只编 X11 客户端。服务端、代理、shadow、SDL/Wayland 客户端一律关掉，
+      # 构建产物从 ~20 个可执行文件收敛到 2 个（xfreerdp + winpr 工具）。
+      - -DCMAKE_BUILD_TYPE=Release
+      # Flatpak 只把 /app/lib 加进库搜索路径，CMake 在这套工具链里默认选 lib64，
+      # 装进 lib64 的 so 运行时找不到（实测 xfreerdp 报 libfreerdp3.so.3: cannot
+      # open shared object）。强制成 lib。
+      - -DCMAKE_INSTALL_LIBDIR=lib
+      - -DWITH_CLIENT=ON
+      - -DWITH_CLIENT_SDL=OFF
+      - -DWITH_SERVER=OFF
+      - -DWITH_SAMPLE=OFF
+      - -DWITH_CHANNELS=ON
+      - -DWITH_CLIENT_CHANNELS=ON
+      - -DWITH_SERVER_CHANNELS=OFF
+      - -DWITH_X11=ON
+      - -DWITH_WAYLAND=OFF
+      # FFMPEG 默认开：SDK 自带 libavcodec 62 / libswscale 9，不多加模块、只多十几秒，
+      # 关掉会连带把 GFX H.264 关掉（CMakeLists 里 WITH_GFX_H264 依赖 WITH_VIDEO_FFMPEG），
+      # 远程桌面退回 NSCodec —— 画质换来的构建时间完全不值。
+      - -DWITH_FFMPEG=ON
+      - -DWITH_SWSCALE=ON
+      - -DWITH_JPEG=OFF
+      - -DWITH_CUPS=OFF
+      - -DWITH_PULSE=ON
+      - -DWITH_ALSA=ON
+      - -DWITH_OSS=OFF
+      - -DWITH_SNDIO=OFF
+      # fuse3 在 SDK 里没有，WITH_FUSE 默认 ON 会让 cmake 直接报
+      # "The following required packages were not found: fuse3"。关掉它只损失
+      # 剪贴板里"粘贴文件"这一种传输方式，文本/图片剪贴板照常。
+      - -DWITH_FUSE=OFF
+      # SDK 里有 mit-krb5 1.22.3，保持开启：RD Gateway 与 NTLM 都用得到。
+      - -DWITH_KRB5=ON
+      - -DWITH_PKCS11=OFF
+      - -DWITH_SMARTCARD_EMULATE=OFF
+      # 下面这几个在 WITH_SERVER=OFF 时根本不会被定义（声明在 server/CMakeLists.txt），
+      # 写了也只是被 cmake 静默忽略，不如不写，免得读清单的人以为它们生效了。
+      - -DCHANNEL_URBDRC=OFF
+      - -DCHANNEL_RDPECAM=OFF
+      # 产物名字变成 xfreerdp3（而不是 xfreerdp），与 rdpflow/freerdp.py 的首选候选名一致。
+      - -DWITH_BINARY_VERSIONING=ON
+      - -DWITH_MANPAGES=OFF
+      - -DWITH_CLIENT_INTERFACE=OFF
+      - -DWITH_SERVER_INTERFACE=OFF
+      - -DWITH_AAD=OFF
+      - -DWITH_DEBUG_ALL=OFF
+      - -DBUILD_TESTING=OFF
+    cleanup:
+      - /bin/sdl-freerdp
+      - /bin/sfreerdp-server
+      - /bin/freerdp-proxy
+      - /bin/winpr-*
+      - /bin/wfreerdp*
+      - /include
+      - /lib/cmake
+      - /lib/pkgconfig
+      - /share/man
+    sources:
+      - type: archive
+        url: https://github.com/FreeRDP/FreeRDP/archive/refs/tags/3.33.1.tar.gz
+        sha256: 6b6da1e7217f924b033da6896e70eb4c4a447c3900d03c0d10179062f0a7d495
+
+  # ---- RDPFlow 本体 ---------------------------------------------------------
+  # 纯 Python，没有构建步骤：把源码铺到 /app/lib/rdpflow，再写一个启动器。
+  # 不装 pip（运行时没有 pip，也不需要——本项目零第三方运行依赖）。
+  - name: rdpflow
+    buildsystem: simple
+    build-commands:
+      - install -d /app/lib/rdpflow/assets
+      - install -m 0644 rdpflow/*.py /app/lib/rdpflow/
+      - install -m 0644 rdpflow/assets/style.css rdpflow/assets/rdpflow.svg /app/lib/rdpflow/assets/
+      - install -d /app/lib/rdpflow/locale
+      - cp -a rdpflow/locale/. /app/lib/rdpflow/locale/
+      - install -d /app/bin
+      - install -m 0755 flatpak/rdpflow-launcher.sh /app/bin/rdpflow
+      - install -Dm0644 flatpak/io.github.rdpflow.RDPFlow.desktop /app/share/applications/io.github.rdpflow.RDPFlow.desktop
+      - install -Dm0644 rdpflow/assets/rdpflow.svg /app/share/icons/hicolor/scalable/apps/io.github.rdpflow.RDPFlow.svg
+      - install -Dm0644 io.github.rdpflow.RDPFlow.metainfo.xml /app/share/metainfo/io.github.rdpflow.RDPFlow.metainfo.xml
+      - install -Dm0644 LICENSE /app/share/licenses/io.github.rdpflow.RDPFlow/LICENSE
+    sources:
+      - type: dir
+        path: .
+        skip:
+          # dist 不跳掉的话，第二次构建会把上一次的 .flatpak（几十 MB）一起塞进
+          # 源码目录，既慢又让 exports 里出现自己。
+          - .git
+          - dist
+          - build
+          - .github
+          - .dsh-project-memory
+          - "**/__pycache__"
+          - "*.py[cod]"

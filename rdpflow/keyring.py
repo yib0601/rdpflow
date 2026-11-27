@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .i18n import _
+
 
 class KeyringError(RuntimeError):
     pass
@@ -39,20 +41,20 @@ class PasswordKeyring:
 
     def save(self, connection_id: str, password: str, kind: str = "rdp") -> None:
         if not self.available:
-            raise KeyringError("系统钥匙串不可用，请先登录桌面会话并安装 libsecret")
+            raise KeyringError(_("这台机器没有可用的密码库（需要已登录的桌面会话与 libsecret）"))
         try:
             stored = self.Secret.password_store_sync(
                 self.schema,
                 self._attributes(connection_id, kind),
                 self.Secret.COLLECTION_DEFAULT,
-                f"RDPFlow：{connection_id}",
+                _("RDPFlow：{id}").format(id=connection_id),
                 password,
                 None,
             )
         except Exception as error:
-            raise KeyringError(str(error)) from error
+            raise KeyringError(_("密码库写入失败：{error}").format(error=error)) from error
         if not stored:
-            raise KeyringError("系统钥匙串拒绝了保存请求")
+            raise KeyringError(_("密码库拒绝了这次写入，密码没有保存"))
 
     def get(self, connection_id: str, kind: str = "rdp") -> str | None:
         if not self.available:

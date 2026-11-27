@@ -1,0 +1,13 @@
+include LICENSE README.md CHANGELOG.md
+include io.github.rdpflow.RDPFlow.desktop rdpflow.spec io.github.rdpflow.RDPFlow.metainfo.xml
+include io.github.rdpflow.RDPFlow.yml
+include build-deb.sh build-rpm.sh build-portable.sh build-flatpak.sh build-windows.sh build-appimage.sh
+recursive-include flatpak *
+recursive-include packaging/windows *
+recursive-include rdpflow/assets *
+recursive-include rdpflow/locale *.mo
+recursive-include po *.po *.pot
+recursive-include scripts *.py *.sh
+recursive-include tests *.py
+recursive-exclude * __pycache__
+recursive-exclude * *.py[cod]

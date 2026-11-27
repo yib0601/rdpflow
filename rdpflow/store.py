@@ -7,6 +7,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from . import runtime
+from .i18n import _
 from .models import (
     RESOLUTION_AUTO,
     Connection,
@@ -28,7 +30,7 @@ def migrate_document(raw: dict[str, Any]) -> tuple[dict[str, Any], bool]:
     if version == SCHEMA_VERSION:
         return raw, False
     if version != 1:
-        raise ValueError("不支持的配置文件版本")
+        raise ValueError(_("不支持的配置文件版本"))
     connections = []
     for item in raw.get("connections") or []:
         if not isinstance(item, dict):
@@ -47,11 +49,10 @@ def migrate_document(raw: dict[str, Any]) -> tuple[dict[str, Any], bool]:
 
 
 class ConnectionStore:
-    """配置文件文档层：连接列表 + 全局默认体验配置，一次原子写入。"""
+    """配置文件文档层：连接列表 + 全局默认配置，一次原子写入。"""
 
     def __init__(self, path: Path | None = None) -> None:
-        config_home = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-        self.path = path or config_home / "rdpflow" / "connections.json"
+        self.path = path or runtime.config_dir() / "connections.json"
         self.recovered_path: Path | None = None
         self.migrated = False
         self.defaults: dict[str, object] = default_experience_options()
@@ -63,11 +64,11 @@ class ConnectionStore:
         try:
             raw: Any = json.loads(self.path.read_text(encoding="utf-8"))
             if not isinstance(raw, dict):
-                raise ValueError("配置文件结构不正确")
+                raise ValueError(_("配置文件结构不正确"))
             raw, self.migrated = migrate_document(raw)
             items = raw.get("connections")
             if not isinstance(items, list):
-                raise ValueError("连接列表格式不正确")
+                raise ValueError(_("连接列表格式不正确"))
             stored_defaults = raw.get("experience_defaults")
             self.defaults = apply_experience_options(
                 stored_defaults if isinstance(stored_defaults, dict) else None
@@ -83,7 +84,9 @@ class ConnectionStore:
                 self.recovered_path = backup
             except OSError:
                 self.recovered_path = None
-            raise RuntimeError(f"无法读取连接配置，已尽量备份原文件：{error}") from error
+            raise RuntimeError(
+                _("无法读取连接配置，已尽量备份原文件：{error}").format(error=error)
+            ) from error
         if self.migrated:
             # 迁移过的文档立刻回写：下次启动就不必再判断，用户也不会在
             # 「看着没改、实际每次都在升级」的状态里反复踩同一个默认值。

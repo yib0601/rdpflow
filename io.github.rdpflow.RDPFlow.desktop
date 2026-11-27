@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+# 文件名必须与 GtkApplication 的 application_id 一致，图标名也必须与它一致。
+# Wayland 下 GNOME Shell 拿 xdg_toplevel.set_app_id 的值去找 <app_id>.desktop，
+# 再去该文件里读 Icon= 的名字；三处任一不同就只剩兜底的空图标。
+Name=RDPFlow
+Comment=Modern Linux RDP connection workspace
+Exec=/home/yibin/Code/rdpflow/run-rdpflow.sh
+Icon=io.github.rdpflow.RDPFlow
+Terminal=false
+Categories=Network;RemoteAccess;
+Keywords=RDP;RemoteDesktop;Windows;FreeRDP;
+# X11 下 WM_CLASS 取的是 GLib.set_prgname 的默认值（进程名），所以这里写 rdpflow。
+StartupWMClass=rdpflow

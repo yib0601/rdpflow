@@ -17,6 +17,11 @@ ROOT = Path(__file__).resolve().parent.parent
 VERSION_INIT = re.compile(r'^__version__\s*=\s*"([^"]+)"', re.MULTILINE)
 VERSION_SPEC = re.compile(r"^Version:\s*(\S+)", re.MULTILINE)
 VERSION_CHANGELOG = re.compile(r"^## \[([0-9][^\]]*)\]", re.MULTILINE)
+# AppStream 元数据里也写着一个版本（Flatpak 构建时 appstreamcli 会校验它），
+# 漏改会出现「包是 0.3.0、商店页写着 0.2.0」。
+VERSION_METAINFO = re.compile(
+    r'<release\s+version="([^"]+)"', re.MULTILINE
+)
 
 
 def read(path: Path) -> str:
@@ -41,27 +46,40 @@ def changelog_versions() -> list[str]:
     return VERSION_CHANGELOG.findall(read(ROOT / "CHANGELOG.md"))
 
 
+def metainfo_versions() -> list[str]:
+    path = ROOT / "io.github.rdpflow.RDPFlow.metainfo.xml"
+    if not path.is_file():
+        return []
+    return VERSION_METAINFO.findall(read(path))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--expect",
-        help="期望版本号（通常是去掉 v 的 tag），例如 0.2.0",
+        help="期望版本号（通常是去掉 v 的 tag），例如 0.3.0",
     )
     args = parser.parse_args(argv)
 
     version = package_version()
     spec = spec_version()
     changelog = changelog_versions()
+    metainfo = metainfo_versions()
 
     problems: list[str] = []
     print(f"package:    {version}")
     print(f"spec:       {spec}")
     print(f"changelog:  {', '.join(changelog) or '(空)'}")
+    print(f"metainfo:   {', '.join(metainfo) or '(空)'}")
 
     if version != spec:
         problems.append(f"rdpflow.spec 的 Version ({spec}) 与包版本 ({version}) 不一致")
     if version not in changelog:
         problems.append(f"CHANGELOG.md 里没有 ## [{version}] 小节")
+    if metainfo and metainfo[0] != version:
+        problems.append(
+            f"AppStream 元数据的最新 release ({metainfo[0]}) 与包版本 ({version}) 不一致"
+        )
     if args.expect and args.expect.lstrip("v") != version:
         problems.append(f"tag ({args.expect}) 与包版本 ({version}) 不一致")
 

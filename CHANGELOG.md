@@ -3,7 +3,81 @@
 本文件格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [0.3.0] - 2026-11-27
+
+### Added
+
+- **英文界面**：界面文案改走 gettext，源码中文原文即 msgid，英文译文在 `po/en.po` 并编译成
+  `rdpflow/locale/en/LC_MESSAGES/rdpflow.mo` 随包分发。语言默认跟着系统 locale，
+  也可用新增的 `RDPFLOW_LANG=en` 单独指定（`LANGUAGE` 管不到 GTK 自身的按钮文字，
+  所以另设这一个变量）。认不出的 locale 与缺 .mo 的环境都回退到中文原文，界面照常可用。
+- `rdpflow/i18n.py`：语言解析与 `_()` 的唯一出处；`runtime.locale_dir()` 回答译文目录在哪，
+  `RDPFLOW_LOCALE_DIR` 可覆盖。
+- `scripts/build-locales.py`：纯 Python 抽词 + 编译 `.mo`（Windows 包与 CI 解释器上都没有
+  gettext 工具链），`--check` 供 CI 校验。
+- `tests/test_i18n.py`：把三条门禁钉成回归项 —— 源码不许有未包 `_()` 的中文字面量、
+  `po/en.po` 必须覆盖每条 `_()`、提交的 `.mo` 必须与 `.po` 一致。
+- `--self-check` 增加 `locales` 一项，报告界面语言、译文目录与已编译语言，用来证明
+  每种分发形态里译文真的装进去了。
+- **新增分布形态**：Flatpak bundle、AppImage、便携包（可重定位 tar.gz）、Windows 安装包
+  （Inno Setup + 免安装 zip），以及 ARM 架构上的全部产物。
+- **AppImage**：单文件、自带 Python 3.12 + GTK 4 + libadwaita + FreeRDP 及整条库闭包，
+  不需要 root、不需要 Flatpak 运行时，也不要求宿主装任何 GTK 组件。用 `ubuntu:24.04`
+  容器装配把兼容性下限钉在 glibc 2.38；构建完先跑 `AppRun --self-check` 与一次 SVG
+  图标渲染，两项都过才出包。
+- `rdpflow --self-check`：逐项检查 GTK typelib、随包资源、配置目录可写性、系统钥匙串
+  与 FreeRDP，输出 JSON 并以退出码表示结果，无显示器也能跑。每个打包形态产完都拿它
+  当验收判据。
+- `rdpflow --version` / `--help`：不需要拉起 GTK 就回答。
+- `rdpflow/runtime.py`：平台适配层，收拢「资源在哪、配置写哪、FreeRDP 叫什么、
+  参数走哪条通道」这四个随分发形态变化的事实。
+- AppStream 元数据 `io.github.rdpflow.RDPFlow.metainfo.xml`，RPM/deb/Flatpak 都装它。
+
+### Changed
+
+- Windows 上没有 POSIX 匿名管道：连接参数改走 `%LOCALAPPDATA%\rdpflow\run` 下的
+  0600 短命文件 + `/args-from:file:`，进程退出即删；Linux 仍走 `fd:`，密码不落盘。
+- 配置目录从硬编码 `~/.config` 改为问 `runtime`：Windows 用 `%APPDATA%`，并新增
+  `RDPFLOW_CONFIG_HOME` 覆盖。
+- 随包资源路径改用 `runtime.bundle_dir()`，PyInstaller 冻结后从 `sys._MEIPASS` 取。
+- FreeRDP 可执行名按平台排序：Windows 优先 `wfreerdp`，Linux 优先 `xfreerdp3`。
+- `arch` 命名统一成 `x86_64` / `arm64`（原便携包用 `amd64`）。
+- 编辑连接里的开关由「保存到系统钥匙串」改为**「记住密码」**，并且不写副标题——这本来就是
+  人人都会的开关，解释只是噪音。快速连接的「保存为常用连接」同样去掉副标题。
+  密码实际存进桌面密码库、配置文件与命令行都没有明文，这条保证只写在 README 里。
+- 只有密码库缺失时才多写一行原因「这台机器没有可用的密码库，密码只能每次手动输入。」，
+  同时编辑器里的「记住密码」置灰（开关已失效，不能让人打开后才在保存时被 toast 打回）；
+  诊断信息由「系统钥匙串：可用/不可用」改为带原因的「密码库」一行。
+- 密码输入框提示语改为「留空表示不改动已记住的密码」/「可以先留空，连接时再输入」，
+  说清留空的后果，而不是复述"已保存"这个状态。
+- 错误提示统一口径：「密码未保存」改为「密码没记住」，并带上具体原因
+  （`密码库写入失败：…` / `密码库拒绝了这次写入，密码没有保存` / 没有密码库时的说明）。
+- 删除连接的确认文案按是否记住密码区分，记住密码时明确提示密码会从「密码和密钥」里一起删掉。
+- 首页去掉那排功能说明卡（画面体验 / 安全凭据 / 稳定排障）：它们是宣传文案，占掉首屏
+  一整行却不产生任何操作，首页只留快速直连和常用连接。
+- 详情页去掉那五张摘要卡片（登录账户 / 显示方式 / 画面预设 / 远程画布 / RD 网关）：
+  这些值在同一页下面就能直接改，重复一份只读副本既占半屏又容易和真实配置对不上。
+  账户与网关并入标题下的副标题行，网关未启用时不占位。
+- 「连接体验」改名为「连接配置」，详情页与编辑器同步；文案与注释一并改口径。
+- 去掉「连接配置」里每行的「默认：…」副标题与组标题那句「每项的副标题就是它的默认值」：
+  开关的当前值就在开关上、下拉的当前项就在下拉里，默认值由「恢复全局默认」负责，
+  每行再复述一遍只是把同一件事说两遍。确实需要说明的两条（动态分辨率/智能缩放互斥、
+  重连最多 5 次）改挂 tooltip，鼠标停上去才出现，不占版面。
+
+### Fixed
+
+- Flatpak 启动器改用 `python3 -c` + 显式 `sys.path.insert(0, "/app/lib")`：原
+  `python3 -m rdpflow` 会把当前工作目录排在最前，从源码检出目录启动时 import 到的
+  是检出里的那份，而不是装进 `/app` 的。
+- Flatpak 清单给 FreeRDP 传 `-DCMAKE_INSTALL_LIBDIR=lib`：这套工具链默认选 `lib64`，
+  而 Flatpak 只把 `/app/lib` 加进库搜索路径，装 `lib64` 会运行期找不到 so。
+- 任务栏与 dock 不再显示兜底的空图标。根因是桌面身份三处不一致：应用的
+  `application_id` 是 `io.github.rdpflow.RDPFlow`，而 rpm/deb/便携包装的是
+  `rdpflow.desktop` + `Icon=rdpflow` + `StartupWMClass=rdpflow`。Wayland 下 GNOME Shell
+  按 `xdg_toplevel` 的 app_id 找 `<app_id>.desktop` 再读 `Icon=`，名字对不上就只能画
+  `image-missing`。现在桌面文件名、`Icon=`、图标文件名统一取 `application_id`，
+  `StartupWMClass` 取 `prgname`（`ui.py` 启动时固定成 `rdpflow`），并加回归测试
+  `tests/test_desktop_identity.py` 钉住这三处。
 
 ## [0.2.0] - 2026-11-27
 
@@ -61,6 +135,7 @@
 - RPM 打包（`build-rpm.sh` + `rdpflow.spec`）。
 - 单元测试与 GTK 冒烟测试。
 
-[Unreleased]: https://github.com/yib0601/rdpflow/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/yib0601/rdpflow/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/yib0601/rdpflow/releases/tag/v0.3.0
 [0.2.0]: https://github.com/yib0601/rdpflow/releases/tag/v0.2.0
 [0.1.0]: https://github.com/yib0601/rdpflow/releases/tag/v0.1.0

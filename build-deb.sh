@@ -33,20 +33,28 @@ libdir="$pkg_root/usr/lib/rdpflow"
 bindir="$pkg_root/usr/bin"
 appdir="$pkg_root/usr/share/applications"
 icondir="$pkg_root/usr/share/icons/hicolor/scalable/apps"
+metainfodir="$pkg_root/usr/share/metainfo"
 docdir="$pkg_root/usr/share/doc/rdpflow"
 
-install -d "$libdir/assets" "$bindir" "$appdir" "$icondir" "$docdir"
+install -d "$libdir/assets" "$bindir" "$appdir" "$icondir" "$metainfodir" "$docdir"
 install -m 0644 rdpflow/*.py "$libdir/"
 install -m 0644 rdpflow/assets/style.css "$libdir/assets/"
 install -m 0644 rdpflow/assets/rdpflow.svg "$libdir/assets/"
+install -d "$libdir/locale"
+cp -a rdpflow/locale/. "$libdir/locale/"
 install -m 0644 README.md CHANGELOG.md "$docdir/"
 install -m 0644 LICENSE "$docdir/copyright"
+# AppStream 元数据：软件中心靠它显示图标、简介和截图。
+install -m 0644 io.github.rdpflow.RDPFlow.metainfo.xml "$metainfodir/"
 
+# 包目录是 /usr/lib/rdpflow（里面就是 __init__.py），所以 sys.path 要插它的**父目录**
+# /usr/lib，插 /usr/lib/rdpflow 会让 `import rdpflow` 去找
+# /usr/lib/rdpflow/rdpflow/__init__.py 并直接 ModuleNotFoundError。
 cat > "$bindir/rdpflow" <<'EOF'
 #!/usr/bin/python3
 import sys
 
-sys.path.insert(0, "/usr/lib/rdpflow")
+sys.path.insert(0, "/usr/lib")
 
 from rdpflow.__main__ import main
 
@@ -55,10 +63,13 @@ EOF
 chmod 0755 "$bindir/rdpflow"
 
 sed -e 's|^Exec=.*|Exec=rdpflow|' \
-    -e 's|^Icon=.*|Icon=rdpflow|' \
-    rdpflow.desktop > "$appdir/rdpflow.desktop"
-chmod 0644 "$appdir/rdpflow.desktop"
-install -m 0644 rdpflow/assets/rdpflow.svg "$icondir/rdpflow.svg"
+    io.github.rdpflow.RDPFlow.desktop > "$appdir/io.github.rdpflow.RDPFlow.desktop"
+chmod 0644 "$appdir/io.github.rdpflow.RDPFlow.desktop"
+# 桌面文件名、Icon= 名、GtkApplication 的 application_id 三处必须同一个字符串：
+# Wayland 下 GNOME Shell 拿 xdg_toplevel.set_app_id 去找 <app_id>.desktop，
+# 再读它里面的 Icon=。少一处对不上，任务栏/dock 就只有兜底的空图标。
+install -m 0644 rdpflow/assets/rdpflow.svg \
+    "$icondir/io.github.rdpflow.RDPFlow.svg"
 
 # ---- control metadata --------------------------------------------------------
 installed_size="$(du -sk --exclude=DEBIAN "$pkg_root" | cut -f1)"

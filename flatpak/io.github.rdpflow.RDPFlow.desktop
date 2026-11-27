@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=RDPFlow
+Comment=Modern Linux RDP connection workspace
+Exec=rdpflow
+# 图标名 = GtkApplication 的 application_id，也是本文件名的词干。
+# Wayland 下 Shell 拿 xdg_toplevel 的 app_id 找 <app_id>.desktop，再读这里的 Icon=。
+Icon=io.github.rdpflow.RDPFlow
+Terminal=false
+Categories=Network;RemoteAccess;
+Keywords=RDP;RemoteDesktop;Windows;FreeRDP;
+# X11 会话没有 app_id 这条路，Shell 改用 WM_CLASS 匹配；WM_CLASS 取自 prgname，
+# 而 ui.py 启动时把 prgname 固定成 "rdpflow"，所以这里必须是 rdpflow 而不是 app_id。
+StartupWMClass=rdpflow

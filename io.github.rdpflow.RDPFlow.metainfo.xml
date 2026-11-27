@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.rdpflow.RDPFlow</id>
+  <name>RDPFlow</name>
+  <summary>Native GTK 4 RDP connection workspace</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <description>
+    <p>
+      RDPFlow manages saved Remote Desktop connections for the Linux desktop on top of
+      FreeRDP. Passwords live in the system keyring, display and audio settings are stored
+      per connection, and every session gets a live FreeRDP log.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Saved connections with search and recent-use ordering</li>
+      <li>Passwords in the system keyring, never on disk in the config file</li>
+      <li>Display presets sized from the real monitor, HiDPI aware</li>
+      <li>Clipboard, audio mode, shared folders, RD Gateway support</li>
+      <li>Live session diagnostics with one-click disconnect</li>
+    </ul>
+  </description>
+  <developer id="io.github.rdpflow">
+    <name>RDPFlow contributors</name>
+  </developer>
+  <url type="homepage">https://github.com/yib0601/rdpflow</url>
+  <url type="bugtracker">https://github.com/yib0601/rdpflow/issues</url>
+  <url type="vcs-browser">https://github.com/yib0601/rdpflow</url>
+  <launchable type="desktop-id">io.github.rdpflow.RDPFlow.desktop</launchable>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Connection workspace</caption>
+      <!-- 用 github.com/<o>/<r>/raw/<branch>/<path> 形式：raw.githubusercontent.com 在
+           部分校验环境里不可达；截图文件本身必须真实存在于仓库，否则 Flathub 的
+           appstream 合成会以 screenshot-image-not-found 打回。 -->
+      <image type="source">https://github.com/yib0601/rdpflow/raw/main/docs/screenshots/dashboard.png</image>
+    </screenshot>
+  </screenshots>
+  <releases>
+    <release version="0.3.0" date="2026-11-27">
+      <description>
+        <p>The interface now speaks English as well as Chinese, following the system locale.</p>
+        <p>New Flatpak, AppImage, portable and Windows builds, on both x86_64 and arm64.</p>
+        <p>The dock and taskbar show the real application icon instead of a fallback.</p>
+      </description>
+    </release>
+    <release version="0.2.0" date="2026-11-27">
+      <description>
+        <p>Window and dialog sizes now follow the real monitor instead of hardcoded pixels.</p>
+        <p>The whole build and release pipeline runs on GitHub Actions.</p>
+      </description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1"/>
+  <categories>
+    <category>Network</category>
+    <category>RemoteAccess</category>
+  </categories>
+  <keywords>
+    <keyword>RDP</keyword>
+    <keyword>remote desktop</keyword>
+    <keyword>FreeRDP</keyword>
+  </keywords>
+</component>

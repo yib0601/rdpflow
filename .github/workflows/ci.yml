@@ -34,16 +34,76 @@ jobs:
       - name: Install validators
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends rpm desktop-file-utils
+          sudo apt-get install -y --no-install-recommends \
+            rpm desktop-file-utils flatpak flatpak-builder appstream
 
       - name: Byte-compile every module
         run: python -m compileall -q rdpflow tests scripts
+
+      - name: Packaging scripts are valid shell
+        run: |
+          # AppImage/Flatpak 这两条最容易出语法错（heredoc + 嵌套引号），先纯语法检查，
+          # 不用等到打标签才发现。
+          for script in build-*.sh; do
+            bash -n "$script"
+            echo "$script ok"
+          done
 
       - name: Validate RPM spec
         run: rpmspec -P rdpflow.spec > /dev/null
 
       - name: Validate desktop entry
-        run: desktop-file-validate rdpflow.desktop
+        run: |
+          desktop-file-validate io.github.rdpflow.RDPFlow.desktop flatpak/io.github.rdpflow.RDPFlow.desktop
+          # 源 desktop 文件必须已经带着正确的 Icon= 名：打包脚本只是替换 Exec，
+          # 不再 sed 改 Icon，漏改就会让人装完只有兜底图标。
+          grep -qx 'Icon=io.github.rdpflow.RDPFlow' io.github.rdpflow.RDPFlow.desktop
+
+      - name: Validate AppStream metadata
+        run: |
+          sudo apt-get install -y --no-install-recommends appstream
+          appstreamcli validate --no-net io.github.rdpflow.RDPFlow.metainfo.xml
+
+      - name: Validate the Flatpak manifest parses
+        run: |
+          # flatpak-builder --show-manifest 只做解析与 schema 检查，不下载、不构建，
+          # 几秒钟就能挡住 YAML 缩进错、字段名写错这类问题。
+          flatpak-builder --show-manifest io.github.rdpflow.RDPFlow.yml > /tmp/manifest.json
+          python3 -c 'import json; d = json.load(open("/tmp/manifest.json"))
+          print("modules:", [m["name"] for m in d["modules"]])
+          # --show-manifest 输出的是规范化后的 JSON，顶层键是 id 而不是 app-id。
+          assert d["id"] == "io.github.rdpflow.RDPFlow"'
+
+      - name: Windows packaging files are syntactically sound
+        run: |
+          python3 -m py_compile packaging/windows/entry.py packaging/windows/runtime_hook.py
+          python3 - <<'PY'
+          import ast
+          import pathlib
+
+          for name in ("rdpflow.spec.windows", "packaging/windows/entry.py",
+                       "packaging/windows/runtime_hook.py"):
+              ast.parse(pathlib.Path(name).read_text(encoding="utf-8"))
+              print(name, "parses")
+          PY
+
+      - name: Translations are complete and compiled
+        run: |
+          # 两条硬门禁：
+          #   1) po/en.po 覆盖源码里每一条 _()（漏翻 = 界面中英混杂）；
+          #   2) 仓库里提交的 .mo 与 .po 一致（改完文案忘了重新编译 = 装了包还是旧文案）。
+          python scripts/build-locales.py --check
+          python3 - <<'PY'
+          import importlib.util, pathlib
+          spec = importlib.util.spec_from_file_location("bl", "scripts/build-locales.py")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          entries, _ = module.read_po(pathlib.Path("po/en.po"))
+          compiled = module.mo_path("en")
+          assert compiled.is_file(), "rdpflow/locale/en/LC_MESSAGES/rdpflow.mo 缺失，运行 scripts/build-locales.py"
+          assert compiled.read_bytes() == module.compile_mo(entries, "en"), "rdpflow.mo 与 po/en.po 不同步"
+          print("locale catalogs up to date:", compiled)
+          PY
 
       - name: Version is consistent across files
         run: python scripts/check_version.py
@@ -197,12 +257,21 @@ jobs:
           dpkg -s rdpflow | grep -E '^(Status|Version):'
           test -x /usr/bin/rdpflow
           test -f /usr/lib/rdpflow/layout.py
-          test -f /usr/share/applications/rdpflow.desktop
+          test -f /usr/share/applications/io.github.rdpflow.RDPFlow.desktop
+          test -f /usr/share/icons/hicolor/scalable/apps/io.github.rdpflow.RDPFlow.svg
 
-      - name: Installed application imports GTK and reports its version
+      - name: Installed application actually runs
         env:
           XDG_CONFIG_HOME: /tmp/xdg
         run: |
+          set -euo pipefail
+          # 必须执行真命令，而不是自己往 sys.path 里塞路径再 import：
+          # 启动器里的 sys.path 插错一级（插 /usr/lib/rdpflow 而不是 /usr/lib）时，
+          # 这种"自造路径的 import 检查"照样通过，用户那边却一启动就
+          # ModuleNotFoundError. 实测踩过。
+          rdpflow --version
+          rdpflow --self-check
+          rdpflow --help > /dev/null
           python3 - <<'PY'
           import sys
           sys.path.insert(0, "/usr/lib")
@@ -239,10 +308,14 @@ jobs:
           rpm -q rdpflow
           test -x /usr/bin/rdpflow
           test -f /usr/libexec/rdpflow/layout.py
-          desktop-file-validate /usr/share/applications/rdpflow.desktop
+          desktop-file-validate /usr/share/applications/io.github.rdpflow.RDPFlow.desktop
 
-      - name: Installed application imports GTK and reports its version
+      - name: Installed application actually runs
         run: |
+          set -euo pipefail
+          rdpflow --version
+          rdpflow --self-check
+          rdpflow --help > /dev/null
           python3 - <<'PY'
           import sys
           sys.path.insert(0, "/usr/libexec")
