@@ -80,6 +80,10 @@ if [ "${APPIMAGE_NATIVE:-0}" != "1" ]; then
     if [ -d /sys/fs/selinux ] && [ "$(cat /sys/fs/selinux/enforce 2>/dev/null || echo 0)" = "1" ]; then
         mount_opts="rw,z"
     fi
+    # dist/ 必须在宿主先建好：容器里以 root 跑，若由它 mkdir 出 dist/，这个目录
+    # 就归 root 所有，回到宿主（CI 的 runner 用户）后连 SHA256SUMS 都写不进去
+    # （实测 Permission denied，AppImage 本身却构建成功）。
+    mkdir -p "$project_dir/dist"
     printf '在 %s 里构建（%s）：glibc 基准由镜像决定，产物不绑宿主。\n' "$image" "$runner"
     "$runner" run --rm \
         -v "$project_dir:/work:$mount_opts" \
@@ -120,7 +124,8 @@ restore_owner() {
         chown -R "$HOST_UID:${HOST_GID:-$HOST_UID}" "$1" 2>/dev/null || true
     fi
 }
-trap 'restore_owner "$dist_dir/appimage"; [ -e "$appimage" ] && chown "${HOST_UID:-0}:${HOST_GID:-0}" "$appimage" "$appimage.sha256" 2>/dev/null || true' EXIT
+# dist/ 自身也要还原：容器里 root 建出来的目录若留着，宿主后续步骤写不进文件。
+trap 'restore_owner "$dist_dir/appimage"; restore_owner "$dist_dir"; [ -e "$appimage" ] && chown "${HOST_UID:-0}:${HOST_GID:-0}" "$appimage" "$appimage.sha256" 2>/dev/null || true' EXIT
 
 # ---- 构建期依赖 --------------------------------------------------------------
 # 前半是运行期依赖（会被复制进 AppDir），后半只在装配时用（查 loader 路径、

@@ -56,12 +56,18 @@ mkdir -p "$dist_dir"
 # 不传 --specpath：它只对"从 .py 自动生成 spec"有意义，传 .spec 时指定它会让
 # 规格里的 SPECPATH（用来定位入口脚本与图标的根目录）指向 build/，于是 Analysis
 # 找不到 packaging/windows/entry.py。dist/work 目录是唯二需要改的。
+#
+# 文件名必须以 .spec 结尾：PyInstaller 判断参数是不是规格文件只看这个后缀
+# （__main__.py 里就是 args.filenames[0].endswith('.spec')）。叫 rdpflow.spec.windows
+# 时它当成了普通脚本，于是从 packaging/windows/entry.py 自动生成了一份
+# rdpflow.spec.spec —— 分析的是 entry.py、产物是 dist/entry/entry.exe，
+# 后面的 dist/RDPFlow 判断必然失败（实测，CI windows 两架构同时红）。
 pyinstaller \
     --noconfirm \
     --clean \
     --distpath "$dist_dir" \
     --workpath "$build_dir" \
-    "$project_dir/rdpflow.spec.windows"
+    "$project_dir/rdpflow-windows.spec"
 
 one_dir="$dist_dir/RDPFlow"
 if [ ! -x "$one_dir/RDPFlow.exe" ]; then

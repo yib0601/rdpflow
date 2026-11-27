@@ -18,6 +18,11 @@ import os
 import sys
 from pathlib import Path
 
+# 文件名必须是 rdpflow-windows.spec：PyInstaller 只有一个判据决定"这是规格文件还是
+# 待打包脚本" —— args.filenames[0].endswith('.spec')。原名 rdpflow.spec.windows 以
+# .windows 结尾，被当成普通脚本，于是它自动生成了一份 rdpflow.spec.spec 去分析
+# entry.py，产物变成 dist/entry/entry.exe（CI 上两个架构同时红就是这个）。
+#
 # SPECPATH 由 PyInstaller 注入，是 .spec 文件所在目录（本文件就放在仓库根）。
 # 兜底到 cwd：从别处用绝对路径调用时 PyInstaller 有时不设这个全局。
 project_dir = Path(globals().get("SPECPATH") or os.getcwd()).resolve()  # noqa: F821

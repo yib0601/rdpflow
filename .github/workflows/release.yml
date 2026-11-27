@@ -198,7 +198,9 @@ jobs:
           set -euo pipefail
           cd dist
           tar xzf ./*.tar.gz
-          cd rdpflow-*-linux-*
+          # 末尾的 / 只匹配目录：dist/ 里还有 rdpflow-<v>-linux-<arch>.tar.gz
+          # 和它的 .sha256，不带 / 时 cd 会收到三个参数并报「参数太多」（实测）。
+          cd rdpflow-*-linux-*/
           ./self-check.sh
           ./bin/rdpflow --version
 
@@ -268,8 +270,10 @@ jobs:
       - name: Install flatpak tooling
         run: |
           sudo apt-get update
+          # elfutils 提供 eu-strip：flatpak-builder 在导出阶段用它拆 debuginfo，
+          # 缺了就报 module freerdp: Failed to execute child process "eu-strip"。
           sudo apt-get install -y --no-install-recommends \
-            flatpak flatpak-builder curl
+            flatpak flatpak-builder elfutils curl
 
       - name: Install GNOME runtime and SDK
         run: |

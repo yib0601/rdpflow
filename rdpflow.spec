@@ -17,8 +17,9 @@ URL:            https://github.com/yib0601/rdpflow
 Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch
 
+# 只有 desktop-file-utils 是构建期真的要用的（%install 里跑 desktop-file-validate）。
+# appstreamcli 只在 %post 里尽力刷新缓存，缺了静默跳过，不该进 BuildRequires。
 BuildRequires:  desktop-file-utils
-BuildRequires:  appstream
 
 Requires:       python3 >= 3.10
 Requires:       python3-gobject

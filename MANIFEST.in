@@ -2,6 +2,7 @@ include LICENSE README.md CHANGELOG.md
 include io.github.rdpflow.RDPFlow.desktop rdpflow.spec io.github.rdpflow.RDPFlow.metainfo.xml
 include io.github.rdpflow.RDPFlow.yml
 include build-deb.sh build-rpm.sh build-portable.sh build-flatpak.sh build-windows.sh build-appimage.sh
+include rdpflow-windows.spec
 recursive-include flatpak *
 recursive-include packaging/windows *
 recursive-include rdpflow/assets *

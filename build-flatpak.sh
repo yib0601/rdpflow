@@ -68,9 +68,12 @@ state_dir="$dist_dir/flatpak-state"
 branch="${FLATPAK_BRANCH:-stable}"
 bundle="$dist_dir/${APP_ID}-${version}-${flatpak_arch}.flatpak"
 
-for tool in flatpak flatpak-builder; do
+# eu-strip 也在这里查：flatpak-builder 的导出阶段要用它拆 debuginfo，缺了会在
+# 构建末尾才报 module <name>: Failed to execute child process "eu-strip"，
+# 前面几分钟的编译全白跑。elfutils 提供它，本机几乎都装着，CI 的裸 runner 不装。
+for tool in flatpak flatpak-builder eu-strip; do
     if ! command -v "$tool" >/dev/null 2>&1; then
-        printf '缺少 %s：Fedora 装 sudo dnf install flatpak flatpak-builder\n' "$tool" >&2
+        printf '缺少 %s：Fedora 装 sudo dnf install flatpak flatpak-builder elfutils，Debian/Ubuntu 装 flatpak flatpak-builder elfutils\n' "$tool" >&2
         exit 1
     fi
 done
