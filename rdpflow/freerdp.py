@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from .models import Connection
+from .models import Connection, resolve_desktop_scale
 
 
 class FreeRDPError(RuntimeError):
@@ -45,15 +45,26 @@ def freerdp_version(executable: str | None = None) -> str:
     return output.splitlines()[0] if output else "版本未知"
 
 
-def build_arguments(connection: Connection, password: str | None) -> list[str]:
+def build_arguments(
+    connection: Connection,
+    password: str | None,
+    screen: tuple[int, int] | None = None,
+    scale_factor: int = 1,
+) -> list[str]:
+    """拼 FreeRDP 参数。
+
+    screen / scale_factor 是本机显示器信息，只用来把"自动"画布算成具体尺寸；
+    显式给了分辨率（如 2560x1440）时它们不参与，参数与本机屏幕无关。
+    """
     errors = connection.validate()
     if errors:
         raise FreeRDPError("；".join(errors.values()))
 
+    width, height = connection.canvas(screen, scale_factor)
     arguments = [
         f"/v:{connection.endpoint}",
         f"/port:{connection.port}",
-        f"/size:{connection.width}x{connection.height}",
+        f"/size:{width}x{height}",
         f"/t:RDPFlow - {connection.name}",
         "/gfx",
         f"/cert:{connection.certificate_mode}",
@@ -69,10 +80,19 @@ def build_arguments(connection: Connection, password: str | None) -> list[str]:
         arguments.append("/f")
     elif connection.display_mode == "monitors":
         arguments.append("/multimon")
+    # FreeRDP 把这两个开关当互斥项，同时下发会直接拒绝启动：
+    #   [ERROR] [parse_smart_sizing_options]: Smart sizing and dynamic resolution
+    #   are mutually exclusive options
+    # 因此动态分辨率仍然优先，由界面把「让位」显示出来，不让它静默失效。
     if connection.dynamic_resolution:
         arguments.append("+dynamic-resolution")
     elif connection.smart_sizing:
         arguments.append("/smart-sizing:on")
+    # 远程 Windows 端自己的桌面缩放（DPI）。auto 时按本机缩放折算，
+    # 让远程字号与本地观感一致 —— 高分屏上远程字小一半，主因就是这里没下发。
+    desktop_scale = resolve_desktop_scale(connection.desktop_scale, scale_factor)
+    if desktop_scale:
+        arguments.append(f"/scale-desktop:{desktop_scale}")
     if connection.fullscreen_bar:
         arguments.append("/floatbar:default:visible")
     if connection.clipboard:
@@ -165,8 +185,10 @@ class FreeRDPLauncher:
         password: str | None,
         on_output: Callable[[str], None],
         on_exit: Callable[[int], None],
+        screen: tuple[int, int] | None = None,
+        scale_factor: int = 1,
     ) -> SessionHandle:
-        arguments = build_arguments(connection, password)
+        arguments = build_arguments(connection, password, screen, scale_factor)
         read_fd, write_fd = os.pipe()
         try:
             process = subprocess.Popen(

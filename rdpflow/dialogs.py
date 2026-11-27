@@ -8,15 +8,37 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib, Gtk
 
+from .layout import dialog_height, dialog_width
 from .models import (
     AUDIO_MODES,
     CERTIFICATE_MODES,
+    DESKTOP_SCALES,
+    DESKTOP_SCALE_AUTO,
     DISPLAY_MODES,
+    EXPERIENCE_FIELDS,
     QUALITY_PRESETS,
+    RESOLUTION_AUTO,
     RESOLUTIONS,
     Connection,
+    apply_experience_options,
+    default_experience_options,
+    effective_scaling,
+    overridden_switches,
     parse_endpoint,
+    toggle_switch,
 )
+
+
+EXPERIENCE_LABELS = {
+    "quality": "画面预设",
+    "resolution": "窗口分辨率",
+    "desktop_scale": "远程桌面缩放",
+    "display_mode": "显示方式",
+    "dynamic_resolution": "动态分辨率",
+    "smart_sizing": "智能缩放",
+    "clipboard": "共享剪贴板",
+    "auto_reconnect": "断线自动重连",
+}
 
 
 QUALITY_LABELS = {
@@ -28,6 +50,121 @@ QUALITY_LABELS = {
 DISPLAY_LABELS = {"window": "窗口", "fullscreen": "单屏全屏", "monitors": "所有显示器"}
 CERTIFICATE_LABELS = {"tofu": "首次信任（推荐）", "deny": "严格校验", "ignore": "忽略校验（不推荐）"}
 AUDIO_LABELS = {"redirect": "在本机播放", "local": "在远程播放", "none": "关闭音频"}
+RESOLUTION_LABELS = {RESOLUTION_AUTO: "自动（跟随本机屏幕）", "1280x720": "1280×720", "1600x900": "1600×900", "1920x1080": "1920×1080", "2560x1440": "2560×1440", "3840x2160": "3840×2160"}
+DESKTOP_SCALE_LABELS = {
+    DESKTOP_SCALE_AUTO: "自动（跟随本机）",
+    "100": "100%",
+    "125": "125%",
+    "150": "150%",
+    "175": "175%",
+    "200": "200%",
+}
+
+
+def option_label(field_name: str, value: object) -> str:
+    """把体验选项的原始值转成界面文案，默认值提示与摘要卡片共用同一套映射。"""
+    if field_name == "quality":
+        return QUALITY_LABELS.get(str(value), str(value))
+    if field_name == "display_mode":
+        return DISPLAY_LABELS.get(str(value), str(value))
+    if field_name == "audio_mode":
+        return AUDIO_LABELS.get(str(value), str(value))
+    if field_name == "resolution":
+        return RESOLUTION_LABELS.get(str(value), str(value))
+    if field_name == "desktop_scale":
+        return DESKTOP_SCALE_LABELS.get(str(value), str(value))
+    if isinstance(value, bool):
+        return "开启" if value else "关闭"
+    return str(value)
+
+
+def default_hint(field_name: str, defaults: dict[str, object]) -> str:
+    return f"默认：{option_label(field_name, defaults.get(field_name))}"
+
+
+class ExperienceRows:
+    """「连接体验」这一组控件，详情页与编辑器共用同一套构造与互斥规则。
+
+    放在 dialogs.py：它只负责把模型里的体验字段变成可交互控件，
+    互斥判定仍由 models.toggle_switch 提供，UI 层不复制一份规则。
+    """
+
+    def __init__(self, options: dict[str, object], defaults: dict[str, object]) -> None:
+        self.options = dict(options)
+        self.defaults = dict(defaults)
+        self.switches: dict[str, Adw.SwitchRow] = {}
+        self.combos: dict[str, Adw.ComboRow] = {}
+
+    def switch(self, field_name: str, title: str, subtitle: str = "") -> Adw.SwitchRow:
+        row = Adw.SwitchRow()
+        row.set_title(title)
+        hint = default_hint(field_name, self.defaults)
+        row.set_subtitle(f"{hint} · {subtitle}" if subtitle else hint)
+        row.set_active(bool(self.options.get(field_name)))
+        self.switches[field_name] = row
+        return row
+
+    def combo(
+        self,
+        field_name: str,
+        title: str,
+        values: tuple[str, ...],
+        labels: dict[str, str],
+    ) -> Adw.ComboRow:
+        row = combo_row(title, values, labels, str(self.options.get(field_name)))
+        row.set_subtitle(default_hint(field_name, self.defaults))
+        row.set_use_subtitle(True)
+        self.combos[field_name] = row
+        return row
+
+    def set_option(self, field_name: str, value: object) -> tuple[dict[str, object], str | None]:
+        """写入一个选项并同步互斥开关；返回新选项与本次被自动关掉的搭档名。"""
+        before = dict(self.options)
+        if isinstance(value, bool):
+            self.options = toggle_switch(self.options, field_name, value)
+        else:
+            self.options = {**self.options, field_name: value}
+        disabled = next(
+            (
+                key
+                for key, previous in before.items()
+                if previous and not self.options.get(key) and key != field_name
+            ),
+            None,
+        )
+        self.sync_widgets()
+        return self.options, disabled
+
+    def sync_widgets(self) -> None:
+        """把当前选项回写到控件，避免互斥自动关闭后界面与实际值不一致。"""
+        for field_name, row in self.switches.items():
+            active = bool(self.options.get(field_name))
+            if row.get_active() != active:
+                row.set_active(active)
+
+    def reset(self) -> None:
+        self.options = dict(self.defaults)
+        for field_name, row in self.switches.items():
+            row.set_active(bool(self.options.get(field_name)))
+        for field_name, row in self.combos.items():
+            wanted = str(self.options.get(field_name))
+            for index, label in enumerate(self._labels(row)):
+                if self._matches(field_name, label, wanted):
+                    row.set_selected(index)
+                    break
+
+    @staticmethod
+    def _labels(row: Adw.ComboRow) -> list[str]:
+        model = row.get_model()
+        return [
+            model.get_string(index) or "" for index in range(model.get_n_items())
+        ]
+
+    @staticmethod
+    def _matches(field_name: str, label: str, value: str) -> bool:
+        # 下拉项的显示文案统一由 option_label 生成，回填时用同一个函数反查，
+        # 免得每加一个带标签的下拉项就要在这里补一条分支。
+        return label == option_label(field_name, value)
 
 
 def combo_row(
@@ -62,11 +199,13 @@ class QuickConnectDialog(Adw.Dialog):
     def __init__(
         self,
         on_connect: Callable[[Connection, str | None, bool], None],
+        defaults: dict[str, object] | None = None,
     ) -> None:
         super().__init__()
         self.on_connect = on_connect
-        self.set_content_width(500)
-        self.set_content_height(470)
+        self.defaults = apply_experience_options(defaults or default_experience_options())
+        self.set_content_width(dialog_width(500))
+        self.set_content_height(dialog_height(470))
 
         toolbar = Adw.ToolbarView()
         toolbar.add_top_bar(header_bar("快速连接"))
@@ -135,7 +274,8 @@ class QuickConnectDialog(Adw.Dialog):
         except ValueError as error:
             self.show_error(str(error))
             return
-        profile = Connection(
+        profile = Connection.with_defaults(
+            self.defaults,
             name=host,
             host=host,
             port=port,
@@ -160,8 +300,8 @@ class PasswordDialog(Adw.Dialog):
         super().__init__()
         self.connection = connection
         self.on_password = on_password
-        self.set_content_width(460)
-        self.set_content_height(300)
+        self.set_content_width(dialog_width(460))
+        self.set_content_height(dialog_height(300))
 
         toolbar = Adw.ToolbarView()
         toolbar.add_top_bar(header_bar("输入登录密码"))
@@ -207,13 +347,18 @@ class ConnectionEditorDialog(Adw.Dialog):
         connection: Connection,
         has_saved_password: bool,
         on_save: Callable[[Connection, str | None], None],
+        defaults: dict[str, object] | None = None,
+        on_save_defaults: Callable[[dict[str, object]], None] | None = None,
     ) -> None:
         super().__init__()
         self.connection = connection
         self.has_saved_password = has_saved_password
         self.on_save = on_save
-        self.set_content_width(680)
-        self.set_content_height(760)
+        self.defaults = apply_experience_options(defaults or default_experience_options())
+        self.on_save_defaults = on_save_defaults
+        self._syncing = False
+        self.set_content_width(dialog_width(680))
+        self.set_content_height(dialog_height(760))
 
         toolbar = Adw.ToolbarView()
         bar = header_bar("编辑连接" if connection.host else "新建连接")
@@ -267,39 +412,74 @@ class ConnectionEditorDialog(Adw.Dialog):
         general.add(self.remember_password)
 
         experience = Adw.PreferencesGroup()
-        experience.set_title("显示与体验")
-        experience.set_description("根据网络、显卡和显示器选择合适预设。")
+        experience.set_title("连接体验")
+        experience.set_description(
+            "各项副标题就是它的默认值；改完可「恢复全局默认」，或把当前配置存成新的默认。"
+        )
         page.add(experience)
-        self.quality = combo_row("画面预设", QUALITY_PRESETS, QUALITY_LABELS, connection.quality)
+        self.experience_rows = ExperienceRows(connection.experience_options(), self.defaults)
+        self.quality = self.experience_rows.combo(
+            "quality", "画面预设", QUALITY_PRESETS, QUALITY_LABELS
+        )
         experience.add(self.quality)
-        self.resolution = combo_row("窗口分辨率", RESOLUTIONS, {item: item for item in RESOLUTIONS}, connection.resolution)
+        self.resolution = self.experience_rows.combo(
+            "resolution", "窗口分辨率", RESOLUTIONS, RESOLUTION_LABELS
+        )
         experience.add(self.resolution)
-        self.display_mode = combo_row("显示方式", DISPLAY_MODES, DISPLAY_LABELS, connection.display_mode)
+        self.desktop_scale = self.experience_rows.combo(
+            "desktop_scale", "远程桌面缩放", DESKTOP_SCALES, DESKTOP_SCALE_LABELS
+        )
+        experience.add(self.desktop_scale)
+        self.display_mode = self.experience_rows.combo(
+            "display_mode", "显示方式", DISPLAY_MODES, DISPLAY_LABELS
+        )
         experience.add(self.display_mode)
-        self.dynamic_resolution = Adw.SwitchRow()
-        self.dynamic_resolution.set_title("窗口缩放时同步分辨率")
-        self.dynamic_resolution.set_subtitle("窗口变化时同步远程分辨率，优先于智能缩放")
-        self.dynamic_resolution.set_active(connection.dynamic_resolution)
+        self.dynamic_resolution = self.experience_rows.switch(
+            "dynamic_resolution",
+            "动态分辨率",
+            "窗口变化时同步远程分辨率",
+        )
         experience.add(self.dynamic_resolution)
-        self.smart_sizing = Adw.SwitchRow()
-        self.smart_sizing.set_title("智能缩放")
-        self.smart_sizing.set_subtitle("缩放远程画面以适应窗口，与动态分辨率二选一")
-        self.smart_sizing.set_active(connection.smart_sizing)
+        self.smart_sizing = self.experience_rows.switch(
+            "smart_sizing",
+            "智能缩放",
+            "缩放画面适配窗口；两项同时开启时以动态分辨率生效（FreeRDP 不接受并存）",
+        )
         experience.add(self.smart_sizing)
-        self.clipboard = Adw.SwitchRow()
-        self.clipboard.set_title("共享剪贴板")
-        self.clipboard.set_active(connection.clipboard)
+        self.clipboard = self.experience_rows.switch("clipboard", "共享剪贴板")
         experience.add(self.clipboard)
+        self.auto_reconnect = self.experience_rows.switch("auto_reconnect", "断线自动重连")
+        experience.add(self.auto_reconnect)
         self.audio_mode = combo_row("音频", AUDIO_MODES, AUDIO_LABELS, connection.audio_mode)
         experience.add(self.audio_mode)
         self.wallpaper = Adw.SwitchRow()
         self.wallpaper.set_title("显示远程壁纸")
         self.wallpaper.set_active(connection.wallpaper)
         experience.add(self.wallpaper)
-        self.auto_reconnect = Adw.SwitchRow()
-        self.auto_reconnect.set_title("断线自动重连")
-        self.auto_reconnect.set_active(connection.auto_reconnect)
-        experience.add(self.auto_reconnect)
+
+        restore = Adw.ActionRow()
+        restore.set_title("恢复全局默认")
+        restore.set_subtitle(
+            f"把上面 {len(EXPERIENCE_FIELDS)} 项还原成当前默认值，其余字段保持不变"
+        )
+        restore.set_icon_name("edit-undo-symbolic")
+        restore.set_activatable(True)
+        restore.connect("activated", lambda *_: self.restore_defaults())
+        experience.add(restore)
+        self.make_default = Adw.SwitchRow()
+        self.make_default.set_title("保存为新的全局默认")
+        self.make_default.set_subtitle("之后新建的连接都用这套体验配置")
+        self.make_default.set_active(False)
+        experience.add(self.make_default)
+
+        self.hint = Gtk.Label(label="", xalign=0)
+        self.hint.add_css_class("muted")
+        self.hint.set_wrap(True)
+        self.hint.set_visible(False)
+        experience.add(self.hint)
+
+        self._connect_experience_rows()
+        self._update_hint()
 
         resources = Adw.PreferencesGroup()
         resources.set_title("本地资源")
@@ -366,15 +546,89 @@ class ConnectionEditorDialog(Adw.Dialog):
 
         dialog.select_folder(self.get_root(), None, finished)
 
+    def _connect_experience_rows(self) -> None:
+        rows = self.experience_rows
+        for field_name, widget in rows.switches.items():
+            widget.connect(
+                "notify::active",
+                lambda widget, _pspec, key=field_name: self._on_switch_changed(key, widget),
+            )
+        for field_name, widget in rows.combos.items():
+            widget.connect(
+                "notify::selected",
+                lambda widget, _pspec, key=field_name: self._on_combo_changed(key, widget),
+            )
+
+    def _update_hint(self, disabled: str | None = None) -> None:
+        """刷新提示行。
+
+        disabled 是本次被联动关掉的开关：「我开了 A，B 就被关了」这件事必须说出来，
+        否则用户会以为自己的选择没被记住。没有联动时再看有没有「开着但没生效」的项。
+        """
+        if disabled:
+            self.hint.set_label(
+                f"已联动关闭{EXPERIENCE_LABELS.get(disabled, disabled)}："
+                "FreeRDP 不接受动态分辨率与智能缩放同时下发。"
+            )
+            self.hint.set_visible(True)
+            return
+        overridden = overridden_switches(self.experience_rows.options)
+        if not overridden:
+            self.hint.set_visible(False)
+            return
+        effective = effective_scaling(self.experience_rows.options)
+        self.hint.set_label(
+            f"{EXPERIENCE_LABELS.get(overridden[0], overridden[0])}当前未生效："
+            f"FreeRDP 不接受它与{EXPERIENCE_LABELS.get(effective, effective)}同时下发。"
+        )
+        self.hint.set_visible(True)
+
+    def _on_switch_changed(self, field_name: str, widget: Adw.SwitchRow) -> None:
+        if self._syncing:
+            return
+        # 互斥联动会写回控件，写回本身又会发 notify::active，用同一个标志挡住重入。
+        self._syncing = True
+        try:
+            _, disabled = self.experience_rows.set_option(field_name, widget.get_active())
+        finally:
+            self._syncing = False
+        self._update_hint(disabled)
+
+    def _on_combo_changed(self, field_name: str, widget: Adw.ComboRow) -> None:
+        if self._syncing:
+            return
+        values = {
+            "quality": QUALITY_PRESETS,
+            "resolution": RESOLUTIONS,
+            "desktop_scale": DESKTOP_SCALES,
+            "display_mode": DISPLAY_MODES,
+        }[field_name]
+        index = widget.get_selected()
+        if 0 <= index < len(values):
+            self.experience_rows.set_option(field_name, values[index])
+
+    def restore_defaults(self) -> None:
+        self._syncing = True
+        try:
+            self.experience_rows.reset()
+        finally:
+            self._syncing = False
+        self._update_hint()
+
+    def experience_payload(self) -> dict[str, object]:
+        """当前体验项 + 不在默认值集合里的音频与壁纸，一次性交给保存流程。"""
+        payload = dict(self.experience_rows.options)
+        payload["audio_mode"] = AUDIO_MODES[self.audio_mode.get_selected()]
+        payload["wallpaper"] = self.wallpaper.get_active()
+        return payload
+
     def validate_and_save(self) -> None:
         try:
             host, port = parse_endpoint(self.host.get_text(), int(self.port.get_value()))
         except ValueError as error:
             self.show_error(str(error))
             return
-        quality = QUALITY_PRESETS[self.quality.get_selected()]
-        display_mode = DISPLAY_MODES[self.display_mode.get_selected()]
-        audio_mode = AUDIO_MODES[self.audio_mode.get_selected()]
+        experience = self.experience_payload()
         certificate_mode = CERTIFICATE_MODES[self.certificate_mode.get_selected()]
         profile = Connection(
             id=self.connection.id,
@@ -388,25 +642,21 @@ class ConnectionEditorDialog(Adw.Dialog):
             gateway_port=int(self.gateway_port.get_value()),
             gateway_username=self.gateway_username.get_text().strip(),
             gateway_domain=self.gateway_domain.get_text().strip(),
-            resolution=RESOLUTIONS[self.resolution.get_selected()],
-            display_mode=display_mode,
-            quality=quality,
-            dynamic_resolution=self.dynamic_resolution.get_active(),
-            smart_sizing=self.smart_sizing.get_active(),
-            clipboard=self.clipboard.get_active(),
-            audio_mode=audio_mode,
             shared_folder=self.shared_folder.get_text().strip(),
             share_name=self.share_name.get_text().strip() or "Transfer",
-            wallpaper=self.wallpaper.get_active(),
-            auto_reconnect=self.auto_reconnect.get_active(),
             certificate_mode=certificate_mode,
             last_connected=self.connection.last_connected,
             created_at=self.connection.created_at,
+            **experience,
         )
         errors = profile.validate()
         if errors:
             self.show_error("；".join(errors.values()))
             return
+        if self.make_default.get_active() and self.on_save_defaults:
+            self.on_save_defaults(
+                {key: experience[key] for key in EXPERIENCE_FIELDS if key in experience}
+            )
         self.on_save(profile, self.password.get_text())
         self.close()
 

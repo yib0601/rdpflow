@@ -13,9 +13,11 @@ project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$project_dir"
 
 version="${VERSION:-$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import rdpflow; print(rdpflow.__version__)' "$project_dir")}"
-# Release number only ("1"), with the spec's %{?dist} macro stripped.
-spec_release="$(awk '/^Release:/ {print $2; exit}' rdpflow.spec)"
-spec_release="${spec_release%%\%\{*}"
+# 默认构建号由 rpm 自己按 spec 求值（只取数字部分，dist 宏由下面单独注入）。
+# 不要 awk 抠 spec 文本：Release 行现在是条件宏，抠出来的字符串不是合法构建号。
+spec_release="$(rpm --specfile rdpflow.spec --qf '%{RELEASE}\n' 2>/dev/null | head -n 1)"
+spec_release="${spec_release%%.*}"
+spec_release="${spec_release:-1}"
 release="${RELEASE:-$spec_release}"
 # On a Fedora host rpmbuild appends its own %{?dist} (e.g. ".fc45"). DIST_TAG
 # overrides it so CI emits a predictable, distro-neutral file name.
@@ -65,6 +67,7 @@ rpmbuild_args=(
     --define "_srcrpmdir $dist_dir/rpm"
     --define "_build_id_links none"
     --define "version $version"
+    --define "build_release $release"
 )
 if [ -n "$dist_tag" ]; then
     rpmbuild_args+=(--define "dist .$dist_tag")
@@ -76,16 +79,22 @@ if [ -n "${RPM_BUILD_NODEPS:-}" ]; then
     rpmbuild_args+=(--nodeps)
 fi
 
+# 只认本次构建的那个文件，判据是「完整文件名精确匹配」，不用 mtime 也不用差集：
+#  - mtime 不可用：本脚本为了可复现构建导出 SOURCE_DATE_EPOCH，rpmbuild 会把产物
+#    时间钉在 commit 时间上，-newer 永远不成立（实测假阴性）。
+#  - 差集不可用：重建同一个 release 会覆盖同名文件，构建前后清单没有新增项。
+#  - find | head -1 更不行：dist/rpm/ 跨次累积，历史包会被随机选中（实测把旧的
+#    el9 包复制成了 dist/rdpflow-<v>-1.noarch.rpm，装完行为与源码完全不符）。
+# 精确文件名同时挡住了「dist tag 不同但 release 相同」的历史包。
 rpmbuild "${rpmbuild_args[@]}"
 
-# rpmbuild writes dist/<arch>/<name>-<version>-<release>%{?dist}.rpm
-built_rpm_path="$(find "$dist_dir/rpm" -type f -name 'rdpflow-*.rpm' ! -name '*.src.rpm' | head -n 1)"
+final_name="rdpflow-${version}-${release}${dist_tag:+.${dist_tag}}.noarch.rpm"
+built_rpm_path="$(find "$dist_dir/rpm" -type f -name "$final_name" | head -n 1)"
 if [ -z "$built_rpm_path" ] || [ ! -f "$built_rpm_path" ]; then
-    printf 'RPM 构建完成，但未找到输出文件\n' >&2
+    printf 'RPM 构建完成，但未找到输出文件（期望 %s）\n' "$final_name" >&2
     exit 1
 fi
 
-final_name="rdpflow-${version}-${release}${dist_tag:+.${dist_tag}}.noarch.rpm"
 rpm_path="$dist_dir/$final_name"
 install -m 0644 "$built_rpm_path" "$rpm_path"
 

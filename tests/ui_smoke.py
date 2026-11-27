@@ -101,7 +101,12 @@ class SmokeApplication(RDPFlowApplication):
             self.window.queue_output(f"batch-line-{index}")
         return False
 
-    def verify_log_batch(self):
+    def verify_log_batch(self, attempt=0):
+        # 15000 行合并成一次 append 由 GLib idle 回调完成，慢机器上 100ms 内可能还没轮到；
+        # 给它几次重试机会，否则这条断言只是在大屏/慢渲染下随机红。
+        if not self.log_calls and attempt < 20:
+            GLib.timeout_add(100, lambda: self.verify_log_batch(attempt + 1))
+            return False
         assert len(self.log_calls) == 1, len(self.log_calls)
         assert "batch-line-14999" in self.window.log_buffer.get_text(
             self.window.log_buffer.get_start_iter(),

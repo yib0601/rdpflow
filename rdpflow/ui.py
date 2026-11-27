@@ -14,12 +14,15 @@ from gi.repository import Adw, Gdk, Gio, GLib, Gtk, Pango
 
 from . import __version__
 from .dialogs import (
+    DESKTOP_SCALE_LABELS,
     DISPLAY_LABELS,
+    EXPERIENCE_LABELS,
     QUALITY_LABELS,
+    RESOLUTION_LABELS,
     ConnectionEditorDialog,
+    ExperienceRows,
     PasswordDialog,
     QuickConnectDialog,
-    combo_row,
 )
 from .freerdp import (
     FreeRDPError,
@@ -29,13 +32,17 @@ from .freerdp import (
     freerdp_version,
 )
 from .keyring import KeyringError, PasswordKeyring
+from .layout import primary_screen, window_default_size, window_min_size
 from .models import (
-    AUDIO_MODES,
+    DESKTOP_SCALES,
     DISPLAY_MODES,
     QUALITY_PRESETS,
     RESOLUTIONS,
     Connection,
+    effective_scaling,
+    overridden_switches,
     parse_endpoint,
+    resolve_desktop_scale,
     utc_now,
 )
 from .store import ConnectionStore
@@ -79,8 +86,11 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         super().__init__(application=application)
         load_styles()
         self.set_title("RDPFlow")
-        self.set_default_size(1180, 780)
-        self.set_size_request(860, 620)
+        # 窗口尺寸跟着本机屏幕走，不再硬编码 1180×780：小屏（1366×768、远程桌面里
+        # 再嵌套一层）下 780 高会超出可视区，窗口被 WM 裁剪、侧栏和按钮挤成一团。
+        screen, scale_factor = primary_screen()
+        self.set_default_size(*window_default_size(screen, scale_factor))
+        self.set_size_request(*window_min_size(screen, scale_factor))
 
         self.store = ConnectionStore()
         self.connections: list[Connection] = []
@@ -100,6 +110,8 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         self.failed_id: str | None = None
         self.last_session_profile: Connection | None = None
         self._refreshing_sidebar = False
+        self._syncing_experience = False
+        self.detail_experience: ExperienceRows | None = None
         self.last_error = ""
         self.log_buffer = Gtk.TextBuffer()
         self._output_passwords: set[str] = set()
@@ -118,6 +130,11 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         self.refresh_all()
         if self.store_warning:
             GLib.idle_add(self.show_toast, self.store_warning)
+        elif self.store.migrated:
+            GLib.idle_add(
+                self.show_toast,
+                "已把老配置里的 1920×1080 升级为「自动跟随本机屏幕」",
+            )
 
     def _build_ui(self) -> None:
         self.toast_overlay = Adw.ToastOverlay()
@@ -206,7 +223,7 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         add = Gtk.Button(label="新建")
         add.add_css_class("suggested-action")
-        add.connect("clicked", lambda *_: self.open_editor(Connection()))
+        add.connect("clicked", lambda *_: self.open_editor(self.new_connection()))
         actions.append(add)
         quick = Gtk.Button(icon_name="network-server-symbolic")
         quick.set_tooltip_text("快速连接")
@@ -288,16 +305,17 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         recent_header.append(recent_title)
         recent_add = Gtk.Button(label="管理连接")
         recent_add.add_css_class("flat")
-        recent_add.connect("clicked", lambda *_: self.open_editor(Connection()))
+        recent_add.connect("clicked", lambda *_: self.open_editor(self.new_connection()))
         recent_header.append(recent_add)
         page.append(recent_header)
 
         self.recent_box = Gtk.FlowBox()
+        self.recent_box.add_css_class("recent-flow")
         self.recent_box.set_selection_mode(Gtk.SelectionMode.NONE)
         self.recent_box.set_homogeneous(True)
         self.recent_box.set_max_children_per_line(3)
-        self.recent_box.set_row_spacing(12)
-        self.recent_box.set_column_spacing(12)
+        self.recent_box.set_row_spacing(14)
+        self.recent_box.set_column_spacing(14)
         page.append(self.recent_box)
         return scroll
 
@@ -471,14 +489,15 @@ class RDPFlowWindow(Adw.ApplicationWindow):
             reverse=True,
         )[:6]
         if not profiles:
-            empty = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+            empty = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
             empty.add_css_class("surface-card")
-            empty.set_margin_top(8)
-            empty.set_margin_bottom(8)
-            title = Gtk.Label(label="还没有常用连接")
+            empty.set_hexpand(True)
+            empty.set_valign(Gtk.Align.FILL)
+            title = Gtk.Label(label="还没有常用连接", xalign=0)
             title.add_css_class("title-4")
-            body = Gtk.Label(label="新建一个连接，之后就能从这里一键进入。")
+            body = Gtk.Label(label="新建一个连接，之后就能从这里一键进入。", xalign=0)
             body.add_css_class("muted")
+            body.set_wrap(True)
             empty.append(title)
             empty.append(body)
             self.recent_box.append(empty)
@@ -486,26 +505,34 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         for profile in profiles:
             button = Gtk.Button()
             button.add_css_class("connection-card")
-            button.set_size_request(220, 96)
-            button.set_halign(Gtk.Align.START)
+            button.set_size_request(-1, 96)
+            button.set_hexpand(True)
+            button.set_halign(Gtk.Align.FILL)
+            button.set_valign(Gtk.Align.FILL)
             box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=13)
             icon = Gtk.Image(icon_name="computer-symbolic")
             icon.set_pixel_size(30)
             icon.add_css_class("accent")
             box.append(icon)
             text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            text.set_hexpand(True)
             name = Gtk.Label(label=profile.name, xalign=0)
             name.add_css_class("title-4")
             name.set_ellipsize(Pango.EllipsizeMode.END)
+            name.set_max_width_chars(12)
+            name.set_hexpand(True)
             detail = Gtk.Label(label=profile.endpoint, xalign=0)
             detail.add_css_class("muted")
             detail.set_ellipsize(Pango.EllipsizeMode.END)
+            detail.set_max_width_chars(16)
+            detail.set_hexpand(True)
             text.append(name)
             text.append(detail)
             box.append(text)
             arrow = Gtk.Image(icon_name="go-next-symbolic")
             box.append(arrow)
             button.set_child(box)
+            button.set_tooltip_text(f"{profile.name}\n{profile.endpoint}")
             button.connect("clicked", lambda *_, item=profile: self.show_connection(item))
             self.recent_box.append(button)
 
@@ -549,6 +576,7 @@ class RDPFlowWindow(Adw.ApplicationWindow):
     def refresh_detail(self) -> None:
         while child := self.detail_host.get_first_child():
             self.detail_host.remove(child)
+        self.detail_experience = None
         profile = self.selected_connection()
         if not profile:
             self.stack.set_visible_child_name("welcome")
@@ -593,28 +621,29 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         titles.append(name)
         titles.append(endpoint)
         top.append(titles)
-        status_text = "会话运行中" if profile.id in self.sessions else "已就绪"
-        if self.failed_id == profile.id:
-            status_text = "连接失败"
-        status = Gtk.Label(label=status_text)
-        status.add_css_class("status-pill")
         if profile.id in self.sessions:
-            status.add_css_class("status-running")
+            status_text, status_state = "会话运行中", "running"
         elif self.failed_id == profile.id:
-            status.add_css_class("status-failed")
-        top.append(status)
-        if profile.id in self.sessions:
-            disconnect = Gtk.Button(label="断开")
-            disconnect.add_css_class("destructive-action")
-            disconnect.add_css_class("pill")
-            disconnect.connect("clicked", lambda *_: self.disconnect_profile(profile))
-            top.append(disconnect)
+            status_text, status_state = "连接失败", "failed"
         else:
-            connect = Gtk.Button(label="连接")
-            connect.add_css_class("suggested-action")
-            connect.add_css_class("pill")
-            connect.connect("clicked", lambda *_: self.connect_profile(profile))
-            top.append(connect)
+            status_text, status_state = "已就绪", "ready"
+        # 状态与主操作放进同一个靠右的动作组：状态是信息，按钮是动作，
+        # 两者只在水平方向共享一行，垂直方向各自居中，避免被整行拉伸成同高度的圆饼。
+        side = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        side.set_valign(Gtk.Align.CENTER)
+        side.append(self.status_chip(status_text, status_state))
+        if profile.id in self.sessions:
+            action = Gtk.Button(label="断开")
+            action.add_css_class("destructive-action")
+            action.connect("clicked", lambda *_: self.disconnect_profile(profile))
+        else:
+            action = Gtk.Button(label="连接")
+            action.add_css_class("suggested-action")
+            action.connect("clicked", lambda *_: self.connect_profile(profile))
+        action.add_css_class("action-pill")
+        action.set_valign(Gtk.Align.CENTER)
+        side.append(action)
+        top.append(side)
         page.append(top)
 
         summaries = Gtk.FlowBox()
@@ -622,18 +651,28 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         summaries.set_selection_mode(Gtk.SelectionMode.NONE)
         summaries.set_homogeneous(True)
         summaries.set_max_children_per_line(2)
-        summaries.set_row_spacing(12)
-        summaries.set_column_spacing(12)
+        summaries.set_row_spacing(14)
+        summaries.set_column_spacing(14)
+        screen, scale_factor = primary_screen()
         summaries.append(self.summary_card("登录账户", profile.username or "连接时输入", "person-symbolic"))
         summaries.append(self.summary_card("显示方式", DISPLAY_LABELS[profile.display_mode], "video-display-symbolic"))
         summaries.append(self.summary_card("画面预设", QUALITY_LABELS[profile.quality], "view-grid-symbolic"))
+        summaries.append(
+            self.summary_card(
+                "远程画布",
+                profile.canvas_label(screen, scale_factor),
+                "preferences-desktop-display-symbolic",
+            )
+        )
         summaries.append(self.summary_card("RD 网关", profile.gateway_host or "未启用", "network-server-symbolic"))
         page.append(summaries)
 
         experience_header = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         experience_title = Gtk.Label(label="连接体验", xalign=0)
         experience_title.add_css_class("section-title")
-        experience_description = Gtk.Label(label="修改后自动保存，不必进入完整编辑器。", xalign=0)
+        experience_description = Gtk.Label(
+            label="修改后自动保存；每项的副标题就是它的默认值。", xalign=0
+        )
         experience_description.add_css_class("muted")
         experience_header.append(experience_title)
         experience_header.append(experience_description)
@@ -641,38 +680,63 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         experience = Gtk.ListBox()
         experience.add_css_class("boxed-list")
         experience.set_selection_mode(Gtk.SelectionMode.NONE)
-        quality = combo_row("画面预设", QUALITY_PRESETS, QUALITY_LABELS, profile.quality)
+        self.detail_experience = ExperienceRows(profile.experience_options(), self.store.defaults)
+        rows = self.detail_experience
+        quality = rows.combo("quality", "画面预设", QUALITY_PRESETS, QUALITY_LABELS)
         quality.connect(
             "notify::selected",
-            lambda *_: self.update_selected("quality", QUALITY_PRESETS[quality.get_selected()]),
+            lambda widget, _pspec: self.update_experience(
+                "quality", QUALITY_PRESETS[widget.get_selected()]
+            ),
         )
         experience.append(quality)
-        resolution = combo_row("窗口分辨率", RESOLUTIONS, {item: item for item in RESOLUTIONS}, profile.resolution)
+        resolution = rows.combo("resolution", "窗口分辨率", RESOLUTIONS, RESOLUTION_LABELS)
         resolution.connect(
             "notify::selected",
-            lambda *_: self.update_selected("resolution", RESOLUTIONS[resolution.get_selected()]),
+            lambda widget, _pspec: self.update_experience(
+                "resolution", RESOLUTIONS[widget.get_selected()]
+            ),
         )
         experience.append(resolution)
-        display = combo_row("显示方式", DISPLAY_MODES, DISPLAY_LABELS, profile.display_mode)
+        desktop_scale = rows.combo(
+            "desktop_scale", "远程桌面缩放", DESKTOP_SCALES, DESKTOP_SCALE_LABELS
+        )
+        desktop_scale.connect(
+            "notify::selected",
+            lambda widget, _pspec: self.update_experience(
+                "desktop_scale", DESKTOP_SCALES[widget.get_selected()]
+            ),
+        )
+        experience.append(desktop_scale)
+        display = rows.combo("display_mode", "显示方式", DISPLAY_MODES, DISPLAY_LABELS)
         display.connect(
             "notify::selected",
-            lambda *_: self.update_selected("display_mode", DISPLAY_MODES[display.get_selected()]),
+            lambda widget, _pspec: self.update_experience(
+                "display_mode", DISPLAY_MODES[widget.get_selected()]
+            ),
         )
         experience.append(display)
-        for field_name, title, value in (
-            ("dynamic_resolution", "动态分辨率", profile.dynamic_resolution),
-            ("smart_sizing", "智能缩放", profile.smart_sizing),
-            ("clipboard", "共享剪贴板", profile.clipboard),
-            ("auto_reconnect", "断线自动重连", profile.auto_reconnect),
+        for field_name, subtitle in (
+            ("dynamic_resolution", "窗口变化时同步远程分辨率"),
+            ("smart_sizing", "缩放画面适配窗口；两者同时开启时以动态分辨率生效"),
+            ("clipboard", "与远程共享本机剪贴板"),
+            ("auto_reconnect", "断开后自动重试，最多 5 次"),
         ):
-            switch = Adw.SwitchRow()
-            switch.set_title(title)
-            switch.set_active(value)
+            switch = rows.switch(field_name, EXPERIENCE_LABELS[field_name], subtitle)
             switch.connect(
                 "notify::active",
-                lambda *_, key=field_name, widget=switch: self.update_selected(key, widget.get_active()),
+                lambda widget, _pspec, key=field_name: self.update_experience(
+                    key, widget.get_active()
+                ),
             )
             experience.append(switch)
+        restore = Adw.ActionRow()
+        restore.set_title("恢复默认")
+        restore.set_subtitle("把这一组体验项还原成全局默认值")
+        restore.set_icon_name("edit-undo-symbolic")
+        restore.set_activatable(True)
+        restore.connect("activated", lambda *_: self.restore_experience_defaults(profile))
+        experience.append(restore)
         page.append(experience)
 
         actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -744,6 +808,21 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         card.append(text)
         return card
 
+    def status_chip(self, text: str, state: str) -> Gtk.Box:
+        chip = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=7)
+        chip.add_css_class("status-chip")
+        chip.set_valign(Gtk.Align.CENTER)
+        dot = Gtk.Box()
+        dot.add_css_class("status-dot")
+        dot.add_css_class(state)
+        dot.set_valign(Gtk.Align.CENTER)
+        chip.append(dot)
+        label = Gtk.Label(label=text)
+        label.add_css_class("status-chip-label")
+        label.add_css_class(state)
+        chip.append(label)
+        return chip
+
     def update_selected(self, field_name: str, value: object) -> None:
         profile = self.selected_connection()
         if not profile:
@@ -752,6 +831,39 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         self.persist()
         self.refresh_sidebar()
         self.refresh_recent()
+
+    def update_experience(self, field_name: str, value: object) -> None:
+        """详情页改体验项：写入连接、联动互斥开关，并提示让位原因。"""
+        profile = self.selected_connection()
+        if not profile or self._syncing_experience:
+            return
+        self._syncing_experience = True
+        try:
+            disabled = profile.set_experience_option(field_name, value)
+            rows = self.detail_experience
+            if rows is not None:
+                rows.options = profile.experience_options()
+                rows.sync_widgets()
+        finally:
+            self._syncing_experience = False
+        self.persist()
+        self.refresh_sidebar()
+        if disabled:
+            self.show_toast(
+                f"已联动关闭{EXPERIENCE_LABELS[disabled]}：FreeRDP 不接受"
+                "动态分辨率与智能缩放同时下发"
+            )
+
+    def restore_experience_defaults(self, profile: Connection) -> None:
+        profile.apply_defaults(self.store.defaults)
+        self.persist()
+        self.refresh_detail()
+        self.show_toast("已恢复默认体验项")
+
+    def save_experience_defaults(self, options: dict[str, object]) -> None:
+        self.store.set_defaults(options)
+        self.persist()
+        self.show_toast("已更新全局默认：之后新建的连接都用这套配置")
 
     def persist(self) -> None:
         try:
@@ -766,8 +878,12 @@ class RDPFlowWindow(Adw.ApplicationWindow):
                 return
         self.connections.append(profile)
 
+    def new_connection(self) -> Connection:
+        """新建连接时直接套上全局默认体验项。"""
+        return Connection.with_defaults(self.store.defaults)
+
     def open_quick_connect(self) -> QuickConnectDialog:
-        dialog = QuickConnectDialog(self.quick_connect)
+        dialog = QuickConnectDialog(self.quick_connect, self.store.defaults)
         dialog.present(self)
         return dialog
 
@@ -788,13 +904,21 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         except ValueError as error:
             self.show_toast(str(error))
             return
-        profile = Connection(name=host, host=host, port=port, username=username)
+        profile = Connection.with_defaults(
+            self.store.defaults, name=host, host=host, port=port, username=username
+        )
         PasswordDialog(profile, lambda password: self.start_session(profile, password)).present(self)
         self.hero_host.set_text("")
 
     def open_editor(self, profile: Connection) -> ConnectionEditorDialog:
         has_password = bool(self.keyring.get(profile.id))
-        dialog = ConnectionEditorDialog(profile, has_password, self.save_edited_connection)
+        dialog = ConnectionEditorDialog(
+            profile,
+            has_password,
+            self.save_edited_connection,
+            self.store.defaults,
+            self.save_experience_defaults,
+        )
         dialog.present(self)
         return dialog
 
@@ -839,11 +963,14 @@ class RDPFlowWindow(Adw.ApplicationWindow):
             self.flush_pending_output()
             self.log_buffer.set_text("")
             self._output_passwords = {password} if password else set()
+            screen, scale_factor = primary_screen()
             handle = self.launcher.launch(
                 profile,
                 password,
                 self.queue_output,
                 lambda code: GLib.idle_add(self.session_finished, profile.id, code),
+                screen,
+                scale_factor,
             )
         except FreeRDPError as error:
             self.last_error = str(error)
@@ -858,7 +985,19 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         self.failed_id = None
         self.last_error = ""
         self.append_log(f"启动 FreeRDP：{self.freerdp_executable}")
-        self.append_log(f"目标：{profile.endpoint}；画质：{QUALITY_LABELS[profile.quality]}")
+        self.append_log(
+            f"目标：{profile.endpoint}；画质：{QUALITY_LABELS[profile.quality]}；"
+            f"画布：{profile.canvas_label(screen, scale_factor)}"
+        )
+        desktop_scale = resolve_desktop_scale(profile.desktop_scale, scale_factor)
+        if desktop_scale:
+            self.append_log(f"远程桌面缩放：{desktop_scale}%")
+        options = profile.experience_options()
+        for field_name in overridden_switches(options):
+            self.append_log(
+                f"{EXPERIENCE_LABELS[field_name]}未下发：与"
+                f"{EXPERIENCE_LABELS[effective_scaling(options)]}互斥（FreeRDP 会拒绝同时使用）"
+            )
         if profile.remember_password and password is not None:
             try:
                 self.keyring.save(profile.id, password)

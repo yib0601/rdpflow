@@ -66,6 +66,26 @@ class ArgumentTests(unittest.TestCase):
         with self.assertRaises(FreeRDPError):
             build_arguments(profile, None)
 
+    def test_auto_canvas_uses_local_screen(self):
+        profile = Connection(host="192.0.2.10")
+        arguments = build_arguments(profile, None, (1920, 1080), 1)
+        self.assertIn("/size:1896x984", arguments)
+
+    def test_explicit_resolution_ignores_screen(self):
+        profile = Connection(host="192.0.2.10", resolution="2560x1440")
+        arguments = build_arguments(profile, None, (1366, 768), 1)
+        self.assertIn("/size:2560x1440", arguments)
+
+    def test_hidpi_desktop_scale_is_forwarded(self):
+        profile = Connection(host="192.0.2.10")
+        self.assertIn("/scale-desktop:200", build_arguments(profile, None, (1920, 1080), 2))
+        plain = build_arguments(profile, None, (1920, 1080), 1)
+        self.assertFalse([item for item in plain if item.startswith("/scale-desktop:")])
+
+    def test_explicit_desktop_scale_wins_over_auto(self):
+        profile = Connection(host="192.0.2.10", desktop_scale="150")
+        self.assertIn("/scale-desktop:150", build_arguments(profile, None, (1920, 1080), 2))
+
     def test_auto_reconnect_arguments(self):
         profile = Connection(host="192.0.2.10", auto_reconnect=True)
         arguments = build_arguments(profile, None)

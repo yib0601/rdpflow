@@ -1,6 +1,10 @@
 Name:           rdpflow
-Version:        0.1.0
-Release:        1%{?dist}
+Version:        0.2.0
+# 构建号由 build-rpm.sh 通过 --define build_release=<n> 传入（RELEASE 环境变量），
+# 未传时回到 1。用自定义宏名而不是 rpm 内建的 release 宏：后者被 --define 时
+# 直接报「宏中存在空内容」，构建中断。
+# 注：spec 注释里的宏也会被展开，所以这里一律不写带花括号的宏引用。
+Release:        %{!?build_release:1}%{?build_release}%{?dist}
 Summary:        Native Linux RDP connection workspace
 
 License:        GPL-3.0-or-later
@@ -17,6 +21,11 @@ Requires:       libadwaita
 Requires:       libsecret
 Requires:       freerdp
 Requires:       hicolor-icon-theme
+# PyGObject 在 import Gtk 时要 cairo-1.0.typelib，gtk4 并不把它当硬依赖拉进来
+# （实测 fedora:44 上装完 gtk4 + python3-gobject 仍报
+#   ImportError: Typelib file for namespace 'cairo', version '1.0' not found）；
+# 提供该 typelib 的包是 gobject-introspection。
+Requires:       gobject-introspection
 Recommends:     gnome-keyring
 
 %description
@@ -84,5 +93,10 @@ python3 -m unittest discover -s tests -p 'test_*.py' -v
 %{_datadir}/icons/hicolor/scalable/apps/rdpflow.svg
 
 %changelog
+* Fri Nov 27 2026 RDPFlow contributors <yib0601@qq.com> - 0.2.0-1
+- Size windows and dialogs from the real monitor instead of hardcoded pixels.
+- Default canvas follows the local screen; /scale-desktop follows the local scale factor.
+- Move the whole pipeline to GitHub Actions, including containerized deb/rpm install checks.
+
 * Thu Nov 26 2026 RDPFlow contributors <yib0601@qq.com> - 0.1.0-1
 - Publish the first public release of RDPFlow.
