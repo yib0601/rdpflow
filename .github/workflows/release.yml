@@ -409,6 +409,8 @@ jobs:
     name: Build windows exe (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     needs: [verify, test]
+    # 卡住时必须留下证据：作业跑飞时日志要等它结束才上传，所以整条作业有个硬上限。
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -480,6 +482,7 @@ jobs:
           echo "C:\Program Files (x86)\Inno Setup 6" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
 
       - name: Build exe
+        timeout-minutes: 25
         env:
           VERSION: ${{ needs.verify.outputs.version }}
           ARCH: ${{ matrix.arch }}
