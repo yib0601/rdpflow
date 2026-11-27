@@ -45,10 +45,39 @@ hiddenimports = [
     "gi.repository.Secret",
 ]
 
-# 项目自己的资源（style.css / rdpflow.svg）不在任何 hook 的视野里，必须显式带上。
+# 项目自己的资源（style.css / rdpflow.svg / 译文 .mo）不在任何 hook 的视野里，必须
+# 显式带上。目标目录要写成相对 _MEIPASS 的 "assets" / "locale"：runtime.bundle_dir()
+# 在冻结后就是 _MEIPASS，它按 <bundle>/assets/style.css 与 <bundle>/locale 找文件。
+# collect_data_files 默认把包名也拼进 dest（rdpflow/assets），那样文件会落在
+# _MEIPASS/rdpflow/assets 下，自检的 assets 与 locales 两项都报 false（实测）。
 from PyInstaller.utils.hooks import collect_data_files  # noqa: E402
 
-datas = collect_data_files("rdpflow", includes=["assets/*", "locale/*/LC_MESSAGES/*.mo"])
+datas = collect_data_files(
+    "rdpflow",
+    includes=["assets/*", "locale/*/LC_MESSAGES/*.mo"],
+    # 包目录相对包根的路径；PyInstaller 会把它接到 dest 后面。
+    subdir=".",
+)
+# collect_data_files 给出的 dest 形如 "rdpflow/assets"（包名 + subdir），去掉包名前缀。
+datas = [
+    (source, dest[len("rdpflow/"):] if dest.startswith("rdpflow/") else dest)
+    for source, dest in datas
+]
+
+# GTK 4 的 typelib 不会被自动收集：hook-gi.repository.Gtk 里写死了 GiModuleInfo('Gtk',
+# '3.0')，只有通过 hooksconfig 的 gi.module-versions 才能改成 4.0；Gdk 会跟着 Gtk
+# 的版本走。不改的话包里带的是 Gtk-3.0.typelib，运行期 require_version("Gtk","4.0")
+# 直接报 Namespace Gtk not available（实测，CI 上两个架构同时红）。
+hooksconfig = {
+    # 语言只留中英：GTK/glib 的翻译目录有几十 MB，全收是纯浪费。
+    "glib": {"languages": ["zh_CN", "en"]},
+    "gi": {
+        "module-versions": {
+            "Gtk": "4.0",
+            "Gdk": "4.0",
+        },
+    },
+}
 
 entry = project_dir / "packaging" / "windows" / "entry.py"
 
@@ -59,10 +88,7 @@ a = Analysis(  # noqa: F821
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
-    hooksconfig={
-        # 语言只留中英：GTK/glib 的翻译目录有几十 MB，全收是纯浪费。
-        "glib": {"languages": ["zh_CN", "en"]},
-    },
+    hooksconfig=hooksconfig,
     runtime_hooks=[str(project_dir / "packaging" / "windows" / "runtime_hook.py")],
     excludes=["tkinter", "test", "unittest", "pydoc_data", "lib2to3"],
     noarchive=False,
