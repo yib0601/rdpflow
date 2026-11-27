@@ -179,6 +179,10 @@ jobs:
     runs-on: ubuntu-24.04
     needs: package
     container: ubuntu:24.04
+    # 容器里的默认 shell 是 sh，`set -euo pipefail` 会直接报 Illegal option。
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -218,6 +222,10 @@ jobs:
     runs-on: ubuntu-24.04
     needs: package
     container: fedora:latest
+    # 容器里的默认 shell 是 sh，`set -euo pipefail` 会直接报 Illegal option。
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/download-artifact@v4
         with:

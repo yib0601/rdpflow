@@ -166,6 +166,10 @@ jobs:
             query: rpm -q rdpflow
             bindir: /usr/libexec
     container: ${{ matrix.image }}
+    # 容器里的默认 shell 是 sh，`set -euo pipefail` 会直接报 Illegal option。
+    defaults:
+      run:
+        shell: bash
     steps:
       # 从 tag 重新构建：容器里就是目标发行版，依赖解析走真实仓库。
       - uses: actions/checkout@v4
