@@ -299,9 +299,11 @@ jobs:
           TAG: ${{ needs.verify.outputs.tag }}
         run: |
           set -euo pipefail
+          # 删过 tag 再推同一个 tag，GitHub 会把已有 release 打回 draft；更新分支
+          # 必须显式 --draft=false，否则「发布成功」的 release 其实一直藏着。
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" release/* --clobber
-            gh release edit "$TAG" --notes-file release-notes.md
+            gh release edit "$TAG" --draft=false --notes-file release-notes.md
           else
             gh release create "$TAG" release/* \
               --title "RDPFlow ${TAG}" \
@@ -328,6 +330,11 @@ jobs:
             (.assets[] | "  \(.name)\t\(.size) bytes")
           '
           assets="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
+          draft="$(gh release view "$TAG" --json isDraft --jq '.isDraft')"
+          if [ "$draft" != "false" ]; then
+            echo "::error::release $TAG 仍是 draft，外部看不到也下载不到"
+            exit 1
+          fi
           missing=0
           for want in \
               "rdpflow-${VERSION}-1.el9.noarch.rpm" \
