@@ -453,13 +453,13 @@ class ConnectionEditorDialog(Adw.Dialog):
         self.dynamic_resolution = self.experience_rows.switch(
             "dynamic_resolution",
             _("动态分辨率"),
-            _("窗口变化时同步远程分辨率"),
+            _("请求服务端跟随窗口改分辨率；服务端不支持时窗口变大会留黑边"),
         )
         experience.add(self.dynamic_resolution)
         self.smart_sizing = self.experience_rows.switch(
             "smart_sizing",
             _("智能缩放"),
-            _("缩放画面适配窗口；与动态分辨率互斥，同时开启时以动态分辨率生效"),
+            _("缩放画面适配窗口，不挑服务端；与动态分辨率互斥，同时开启时以它生效"),
         )
         experience.add(self.smart_sizing)
         self.clipboard = self.experience_rows.switch("clipboard", _("共享剪贴板"))
@@ -587,7 +587,7 @@ class ConnectionEditorDialog(Adw.Dialog):
         """
         if disabled:
             self.hint.set_label(
-                _("已联动关闭{name}：FreeRDP 不接受动态分辨率与智能缩放同时下发。").format(
+                _("已联动关闭{name}：FreeRDP 不接受动态分辨率与智能缩放同时下发，两者只能留一个。").format(
                     name=EXPERIENCE_LABELS.get(disabled, disabled)
                 )
             )

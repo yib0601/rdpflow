@@ -149,7 +149,7 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         elif self.store.migrated:
             GLib.idle_add(
                 self.show_toast,
-                _("已把老配置里的 1920×1080 升级为「自动跟随本机屏幕」"),
+                _("已升级老配置：分辨率改为「自动」，缩放改为「智能缩放」"),
             )
 
     def _build_ui(self) -> None:
@@ -707,8 +707,8 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         )
         experience.append(display)
         for field_name, tooltip in (
-            ("dynamic_resolution", _("窗口变化时同步远程分辨率")),
-            ("smart_sizing", _("缩放画面适配窗口；与动态分辨率互斥，同时开启时以动态分辨率生效")),
+            ("dynamic_resolution", _("请求服务端跟随窗口改分辨率；服务端不支持时窗口变大会留黑边")),
+            ("smart_sizing", _("缩放画面适配窗口，不挑服务端；与动态分辨率互斥，同时开启时以它生效")),
             ("clipboard", ""),
             ("auto_reconnect", _("断开后自动重试，最多 5 次")),
         ):

@@ -15,7 +15,7 @@ msgstr ""
 msgid "FreeRDP：{version}"
 msgstr ""
 
-#: rdpflow/models.py:214
+#: rdpflow/models.py:219
 msgid "IPv6 地址请使用 [地址]:端口 的格式"
 msgstr ""
 
@@ -59,7 +59,7 @@ msgstr ""
 msgid "不可用（{reason}）；「记住密码」已关闭，每次连接手动输入密码"
 msgstr ""
 
-#: rdpflow/store.py:33
+#: rdpflow/store.py:88
 msgid "不支持的配置文件版本"
 msgstr ""
 
@@ -125,11 +125,11 @@ msgstr ""
 msgid "共享剪贴板"
 msgstr ""
 
-#: rdpflow/models.py:375
+#: rdpflow/models.py:380
 msgid "共享名称只能包含字母、数字、下划线和连字符"
 msgstr ""
 
-#: rdpflow/freerdp.py:154
+#: rdpflow/freerdp.py:157
 msgid "共享目录不存在：{path}"
 msgstr ""
 
@@ -265,6 +265,10 @@ msgstr ""
 msgid "工作台"
 msgstr ""
 
+#: rdpflow/ui.py:152
+msgid "已升级老配置：分辨率改为「自动」，缩放改为「智能缩放」"
+msgstr ""
+
 #: rdpflow/ui.py:1113
 msgid "已复制到剪贴板"
 msgstr ""
@@ -277,10 +281,6 @@ msgstr ""
 msgid "已恢复默认配置项"
 msgstr ""
 
-#: rdpflow/ui.py:152
-msgid "已把老配置里的 1920×1080 升级为「自动跟随本机屏幕」"
-msgstr ""
-
 #: rdpflow/ui.py:839
 msgid "已更新全局默认：之后新建的连接都用这套配置"
 msgstr ""
@@ -290,7 +290,7 @@ msgid "已联动关闭{name}：FreeRDP 不接受动态分辨率与智能缩放�
 msgstr ""
 
 #: rdpflow/dialogs.py:590
-msgid "已联动关闭{name}：FreeRDP 不接受动态分辨率与智能缩放同时下发。"
+msgid "已联动关闭{name}：FreeRDP 不接受动态分辨率与智能缩放同时下发，两者只能留一个。"
 msgstr ""
 
 #: rdpflow/ui.py:1073
@@ -385,32 +385,32 @@ msgstr ""
 msgid "新建连接"
 msgstr ""
 
-#: rdpflow/freerdp.py:269
+#: rdpflow/freerdp.py:272
 msgid "无法传递连接参数：{error}"
 msgstr ""
 
-#: rdpflow/freerdp.py:291
+#: rdpflow/freerdp.py:294
 msgid "无法写入连接参数文件：{error}"
 msgstr ""
 
-#: rdpflow/freerdp.py:262
-#: rdpflow/freerdp.py:308
+#: rdpflow/freerdp.py:265
+#: rdpflow/freerdp.py:311
 msgid "无法启动 FreeRDP：{error}"
 msgstr ""
 
-#: rdpflow/__main__.py:186
+#: rdpflow/__main__.py:215
 msgid "无法启动 RDPFlow：GTK 运行时不可用\n  {kind}: {error}\n  装齐依赖后用 `rdpflow --self-check` 复查。"
 msgstr ""
 
-#: rdpflow/__main__.py:197
+#: rdpflow/__main__.py:226
 msgid "无法打开图形界面：{error}"
 msgstr ""
 
-#: rdpflow/__main__.py:174
+#: rdpflow/__main__.py:203
 msgid "无法识别的选项：{options}\n\n{usage}"
 msgstr ""
 
-#: rdpflow/store.py:88
+#: rdpflow/store.py:128
 msgid "无法读取连接配置，已尽量备份原文件：{error}"
 msgstr ""
 
@@ -441,7 +441,7 @@ msgstr ""
 msgid "最近会话日志"
 msgstr ""
 
-#: rdpflow/models.py:269
+#: rdpflow/models.py:274
 msgid "未命名连接"
 msgstr ""
 
@@ -529,20 +529,15 @@ msgstr ""
 msgid "窗口分辨率"
 msgstr ""
 
-#: rdpflow/dialogs.py:456
-#: rdpflow/ui.py:710
-msgid "窗口变化时同步远程分辨率"
-msgstr ""
-
 #: rdpflow/dialogs.py:402
 msgid "端口"
 msgstr ""
 
-#: rdpflow/models.py:228
+#: rdpflow/models.py:233
 msgid "端口必须在 1–65535 之间"
 msgstr ""
 
-#: rdpflow/models.py:223
+#: rdpflow/models.py:228
 msgid "端口必须是数字"
 msgstr ""
 
@@ -564,7 +559,7 @@ msgstr ""
 
 #: rdpflow/dialogs.py:462
 #: rdpflow/ui.py:711
-msgid "缩放画面适配窗口；与动态分辨率互斥，同时开启时以动态分辨率生效"
+msgid "缩放画面适配窗口，不挑服务端；与动态分辨率互斥，同时开启时以它生效"
 msgstr ""
 
 #: rdpflow/__main__.py:50
@@ -587,11 +582,11 @@ msgstr ""
 msgid "网关端口"
 msgstr ""
 
-#: rdpflow/models.py:372
+#: rdpflow/models.py:377
 msgid "网关端口必须在 1–65535 之间"
 msgstr ""
 
-#: rdpflow/models.py:360
+#: rdpflow/models.py:365
 msgid "自动（{width}×{height}）"
 msgstr ""
 
@@ -624,7 +619,7 @@ msgstr ""
 msgid "诊断信息"
 msgstr ""
 
-#: rdpflow/models.py:368
+#: rdpflow/models.py:373
 msgid "请使用已经解析的主机地址和端口"
 msgstr ""
 
@@ -640,7 +635,12 @@ msgstr ""
 msgid "请把 wfreerdp.exe 放进 PATH，或用 RDPFLOW_FREERDP 指定它的完整路径"
 msgstr ""
 
-#: rdpflow/models.py:207
+#: rdpflow/dialogs.py:456
+#: rdpflow/ui.py:710
+msgid "请求服务端跟随窗口改分辨率；服务端不支持时窗口变大会留黑边"
+msgstr ""
+
+#: rdpflow/models.py:212
 msgid "请输入远程主机地址"
 msgstr ""
 
@@ -681,7 +681,7 @@ msgstr ""
 msgid "这台机器没有可用的密码库，密码只能每次手动输入。"
 msgstr ""
 
-#: rdpflow/models.py:226
+#: rdpflow/models.py:231
 msgid "远程主机地址格式不正确"
 msgstr ""
 
@@ -724,7 +724,7 @@ msgstr ""
 msgid "连接"
 msgstr ""
 
-#: rdpflow/store.py:71
+#: rdpflow/store.py:111
 msgid "连接列表格式不正确"
 msgstr ""
 
@@ -732,7 +732,7 @@ msgstr ""
 msgid "连接到 {endpoint}"
 msgstr ""
 
-#: rdpflow/freerdp.py:176
+#: rdpflow/freerdp.py:179
 msgid "连接参数不能包含换行符"
 msgstr ""
 
@@ -777,7 +777,7 @@ msgstr ""
 msgid "选择要共享的目录"
 msgstr ""
 
-#: rdpflow/store.py:67
+#: rdpflow/store.py:107
 msgid "配置文件结构不正确"
 msgstr ""
 

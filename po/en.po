@@ -270,8 +270,8 @@ msgid "已就绪"
 msgstr "Ready"
 
 #: rdpflow/ui.py:153
-msgid "已把老配置里的 1920×1080 升级为「自动跟随本机屏幕」"
-msgstr "Old 1920×1080 settings were switched to “follow the local screen”"
+msgid "已升级老配置：分辨率改为「自动」，缩放改为「智能缩放」"
+msgstr "Older settings upgraded: resolution is now Automatic and scaling is Smart sizing"
 
 #: rdpflow/ui.py:831
 msgid "已更新全局默认：之后新建的连接都用这套配置"
@@ -282,8 +282,8 @@ msgid "已联动关闭{name}：FreeRDP 不接受动态分辨率与智能缩放�
 msgstr "{name} was turned off automatically: FreeRDP rejects dynamic resolution and smart sizing together"
 
 #: rdpflow/dialogs.py:591
-msgid "已联动关闭{name}：FreeRDP 不接受动态分辨率与智能缩放同时下发。"
-msgstr "{name} was turned off automatically: FreeRDP rejects dynamic resolution and smart sizing together."
+msgid "已联动关闭{name}：FreeRDP 不接受动态分辨率与智能缩放同时下发，两者只能留一个。"
+msgstr "{name} was turned off automatically: FreeRDP rejects dynamic resolution and smart sizing together, so only one can stay on."
 
 #: rdpflow/ui.py:1065
 msgid "已记住的密码也会从「密码和密钥」里一起删掉，不可恢复。"
@@ -502,8 +502,8 @@ msgid "窗口分辨率"
 msgstr "Window resolution"
 
 #: rdpflow/dialogs.py:459 rdpflow/ui.py:702
-msgid "窗口变化时同步远程分辨率"
-msgstr "Follow window size with the remote resolution"
+msgid "请求服务端跟随窗口改分辨率；服务端不支持时窗口变大会留黑边"
+msgstr "Ask the server to follow the window size; a server that does not support it leaves black borders when the window grows"
 
 #: rdpflow/dialogs.py:405
 msgid "端口"
@@ -770,5 +770,5 @@ msgstr "Restore the global defaults afterwards, or save the current settings as 
 msgid "经网关 {host}"
 msgstr "via gateway {host}"
 
-msgid "缩放画面适配窗口；与动态分辨率互斥，同时开启时以动态分辨率生效"
-msgstr "Scale the session to fit the window; it conflicts with dynamic resolution, which wins when both are on"
+msgid "缩放画面适配窗口，不挑服务端；与动态分辨率互斥，同时开启时以它生效"
+msgstr "Scale the session to fit the window, regardless of what the server supports; it conflicts with dynamic resolution and wins when both are on"

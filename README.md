@@ -15,7 +15,7 @@
 |---|---|
 | 连接管理 | 保存 / 编辑 / 搜索连接，记录最近连接时间，支持 `rdp://` 与 IPv6 写法 |
 | 凭据安全 | 打开「记住密码」后，密码交给桌面的密码库（libsecret / GNOME Keyring，即「密码和密钥」）保管；配置文件与进程命令行里**都没有明文密码**。机器没有密码库时开关自动置灰，改为每次手动输入 |
-| 显示预设 | 分辨率、窗口 / 全屏 / 多显示器、动态分辨率、smart sizing |
+| 显示预设 | 分辨率、窗口 / 全屏 / 多显示器、智能缩放（默认）、动态分辨率 |
 | 自适应画布 | 默认 `窗口分辨率 = 自动`：按主显示器尺寸（HiDPI 再乘缩放因子）算远程画布，扣掉窗口边框；`远程桌面缩放 = 自动` 时按本机缩放因子下发 `/scale-desktop`，远程字号与本地观感一致 |
 | 默认值 | 「连接配置」七项由 `models.EXPERIENCE_DEFAULTS` 统一定义，新建连接直接套用；详情页与编辑器都能一键恢复默认，编辑器还能把当前配置存为新的全局默认 |
 | 画质档位 | `balanced` / `performance` / `quality` / `compatibility`（兼容模式回退 `-gfx` + GDI） |
@@ -30,9 +30,20 @@
 `Smart sizing and dynamic resolution are mutually exclusive options` 并拒绝启动，
 因此界面上开启其中一项会自动关闭另一项，下发时也只带一个。
 
-老版本配置（`connections.json` 的 `version: 1`）里等于旧出厂默认的 `1920x1080` 会在
-首次启动时自动改写为 `auto` 并回写 `version: 2`，随后用一条 toast 说明；手选过的其他
-分辨率（如 `2560x1440`）保持原样。
+出厂默认只开**智能缩放**。动态分辨率要服务端接受 DisplayControl 的重设尺寸请求才兑现，
+而把分辨率绑在物理显示器上的实现（如 gnome-remote-desktop）会无视它——实测请求
+`/size:1392x784`，服务端回的仍是 `ResetGraphics 1920x1080`，于是窗口一放大，画面就缩在
+左上角、其余部分是没画过的纯黑。智能缩放是客户端侧缩放，不依赖服务端，窗口怎么变都铺满。
+需要服务端真正跟随窗口改分辨率的场景（如远程 Windows），在连接里手动打开动态分辨率即可。
+
+配置迁移：
+
+- `version: 1` 里等于旧出厂默认的 `1920x1080` 会改写为 `auto`；手选过的其他分辨率
+  （如 `2560x1440`）保持原样。
+- `version: 2` 里两个缩放开关**都为 true** 的连接（即没动过开关、吃默认值的那批）改成
+  只开智能缩放；用户主动只开其一的配置保持原样。
+
+两种情况都会回写成 `version: 3`，随后用一条 toast 说明。
 
 密码通过匿名管道以 `/args-from:fd:N` 传给 FreeRDP，不会出现在 `ps` 的进程命令行里。
 
@@ -307,21 +318,27 @@ xvfb-run -a -s "-screen 0 1920x1080x24" \
 发布新版本（全部由 Actions 构建，本机不打任何包）：
 
 ```bash
-# 1. 改版本号：__version__、rdpflow.spec 的 Version + %changelog、CHANGELOG.md、
-#    io.github.rdpflow.RDPFlow.metainfo.xml 的 <release>
+# 1. 定版本号：默认只升补丁位（0.3.1 → 0.3.2）。
+#    只有新增功能才动次版本位，0.x 阶段不动主版本位 —— 迭代节奏压小，
+#    用户装完只需看最后一位变了。
+VERSION=0.3.2
+
+# 2. 四处版本号改齐：__version__、rdpflow.spec 的 Version + %changelog、
+#    CHANGELOG.md 的 ## [x.y.z] 小节、metainfo.xml 的 <release>
 $EDITOR rdpflow/__init__.py rdpflow.spec CHANGELOG.md \
         io.github.rdpflow.RDPFlow.metainfo.xml
-python3 scripts/check_version.py            # 四处必须说同一个数
+python3 scripts/check_version.py --expect "v$VERSION"   # 四处必须说同一个数
 
-# 2. 提交推送，CI 全绿后再打标签
-git commit -am "Release 0.3.0"
+# 3. 提交推送，CI 全绿后再打标签
+git commit -am "Release $VERSION"
 git push origin main
-git tag -a v0.3.0 -m "RDPFlow 0.3.0"
-git push origin v0.3.0                      # Release 工作流构建并上传全部产物
+git tag -a "v$VERSION" -m "RDPFlow $VERSION"
+git push origin "v$VERSION"                 # Release 工作流构建并上传全部产物
 ```
 
 查看进度：`gh run list --workflow=release.yml`，产物齐了用
-`gh release view v0.3.0` 确认。
+`gh release view "v$VERSION"` 确认。补丁版本不写长篇发行说明，Release note 只列
+「修了什么」的三五行即可。
 
 ## 许可
 

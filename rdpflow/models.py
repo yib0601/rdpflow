@@ -36,7 +36,7 @@ EXPERIENCE_DEFAULTS: dict[str, object] = {
     "resolution": RESOLUTION_AUTO,
     "desktop_scale": DESKTOP_SCALE_AUTO,
     "display_mode": "window",
-    "dynamic_resolution": True,
+    "dynamic_resolution": False,
     "smart_sizing": True,
     "clipboard": True,
     "auto_reconnect": True,
@@ -50,8 +50,10 @@ DEFAULT_RESOLUTION = str(EXPERIENCE_DEFAULTS["resolution"])
 # FreeRDP 拒绝同时下发这两个开关（实测）：
 #   [ERROR][com.freerdp.client.common.cmdline] - [parse_smart_sizing_options]:
 #   Smart sizing and dynamic resolution are mutually exclusive options
-# 两者都按默认开启保存（与界面展示一致），下发参数时动态分辨率优先，
-# 智能缩放在这条连接上让位，会话日志里会写明，不静默丢弃。
+# 因此出厂默认只开智能缩放：动态分辨率要服务端接受 DisplayControl 重设尺寸才兑现，
+# gnome-remote-desktop 这类把分辨率绑在物理显示器上的实现会无视它，窗口一大就留黑边；
+# 智能缩放是客户端侧缩放，不依赖服务端。用户在界面里主动开动态分辨率时，
+# toggle_switch 会联动关掉智能缩放，两者不会同时下发。
 EXCLUSIVE_SWITCHES: tuple[tuple[str, str], ...] = (("dynamic_resolution", "smart_sizing"),)
 
 
@@ -176,11 +178,14 @@ def toggle_switch(options: dict[str, object], field_name: str, value: bool) -> d
 
 
 def effective_scaling(options: dict[str, object]) -> str:
-    """实际会下发给 FreeRDP 的缩放方式：dynamic_resolution / smart_sizing / none。"""
-    if options.get("dynamic_resolution"):
-        return "dynamic_resolution"
+    """实际会下发给 FreeRDP 的缩放方式：smart_sizing / dynamic_resolution / none。
+
+    与 freerdp.build_arguments 的顺序必须一致：智能缩放先胜，因为它只依赖客户端。
+    """
     if options.get("smart_sizing"):
         return "smart_sizing"
+    if options.get("dynamic_resolution"):
+        return "dynamic_resolution"
     return "none"
 
 

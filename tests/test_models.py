@@ -83,10 +83,21 @@ class ExperienceDefaultsTests(unittest.TestCase):
         self.assertTrue(profile.smart_sizing)
         self.assertFalse(profile.dynamic_resolution)
 
-    def test_scaling_prefers_dynamic_resolution(self):
+    def test_scaling_prefers_smart_sizing(self):
+        """两者都开时以智能缩放生效，与 build_arguments 的下发顺序一致。"""
         options = {"dynamic_resolution": True, "smart_sizing": True}
+        self.assertEqual(effective_scaling(options), "smart_sizing")
+        self.assertEqual(overridden_switches(options), ("dynamic_resolution",))
+
+    def test_explicit_dynamic_resolution_is_effective_when_alone(self):
+        options = {"dynamic_resolution": True, "smart_sizing": False}
         self.assertEqual(effective_scaling(options), "dynamic_resolution")
-        self.assertEqual(overridden_switches(options), ("smart_sizing",))
+        self.assertEqual(overridden_switches(options), ())
+
+    def test_no_scaling_when_both_off(self):
+        options = {"dynamic_resolution": False, "smart_sizing": False}
+        self.assertEqual(effective_scaling(options), "none")
+        self.assertEqual(overridden_switches(options), ())
 
     def test_set_experience_option_keeps_non_boolean_values(self):
         profile = Connection(host="desktop.example")

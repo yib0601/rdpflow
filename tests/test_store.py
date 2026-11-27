@@ -115,12 +115,12 @@ class MigrationTests(unittest.TestCase):
         )
         store = ConnectionStore(self.path)
         store.save(store.load())
-        self.assertEqual(json.loads(self.path.read_text(encoding="utf-8"))["version"], 2)
+        self.assertEqual(json.loads(self.path.read_text(encoding="utf-8"))["version"], 3)
 
     def test_current_version_is_untouched(self):
         self.write_document(
             {
-                "version": 2,
+                "version": 3,
                 "connections": [{"name": "新", "host": "192.0.2.10", "resolution": "1920x1080"}],
             }
         )
@@ -128,6 +128,56 @@ class MigrationTests(unittest.TestCase):
         connections = store.load()
         self.assertFalse(store.migrated)
         self.assertEqual(connections[0].resolution, "1920x1080")
+
+    def test_v2_default_scaling_pair_becomes_smart_sizing_only(self):
+        """v2 出厂默认是「两项都开」，那批连接用户没动过，跟着升级成只开智能缩放。"""
+        self.write_document(
+            {
+                "version": 2,
+                "connections": [
+                    {
+                        "name": "吃默认",
+                        "host": "192.0.2.10",
+                        "dynamic_resolution": True,
+                        "smart_sizing": True,
+                    },
+                    {
+                        "name": "用户主动选了动态分辨率",
+                        "host": "192.0.2.11",
+                        "dynamic_resolution": True,
+                        "smart_sizing": False,
+                    },
+                    {
+                        "name": "两项都关",
+                        "host": "192.0.2.12",
+                        "dynamic_resolution": False,
+                        "smart_sizing": False,
+                    },
+                ],
+            }
+        )
+        store = ConnectionStore(self.path)
+        connections = store.load()
+        self.assertTrue(store.migrated)
+        self.assertFalse(connections[0].dynamic_resolution)
+        self.assertTrue(connections[0].smart_sizing)
+        self.assertTrue(connections[1].dynamic_resolution)
+        self.assertFalse(connections[1].smart_sizing)
+        self.assertFalse(connections[2].dynamic_resolution)
+        self.assertFalse(connections[2].smart_sizing)
+
+    def test_v2_defaults_block_scaling_is_migrated(self):
+        self.write_document(
+            {
+                "version": 2,
+                "experience_defaults": {"dynamic_resolution": True, "smart_sizing": True},
+                "connections": [],
+            }
+        )
+        store = ConnectionStore(self.path)
+        store.load()
+        self.assertFalse(store.defaults["dynamic_resolution"])
+        self.assertTrue(store.defaults["smart_sizing"])
 
     def test_unknown_version_is_still_rejected(self):
         self.write_document({"version": 99, "connections": []})

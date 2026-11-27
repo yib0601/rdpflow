@@ -116,11 +116,14 @@ def build_arguments(
     # FreeRDP 把这两个开关当互斥项，同时下发会直接拒绝启动：
     #   [ERROR] [parse_smart_sizing_options]: Smart sizing and dynamic resolution
     #   are mutually exclusive options
-    # 因此动态分辨率仍然优先，由界面把「让位」显示出来，不让它静默失效。
-    if connection.dynamic_resolution:
-        arguments.append("+dynamic-resolution")
-    elif connection.smart_sizing:
+    # 智能缩放排前面：它只做客户端侧缩放，任何服务端都兑现；动态分辨率要服务端
+    # 接受 DisplayControl 重设尺寸，gnome-remote-desktop 之类绑死物理显示器的实现
+    # 会无视它（实测请求 /size:1392x784，服务端回 ResetGraphics 1920x1080），
+    # 窗口一放大就只剩左上角一块画面。两者都开时仍由界面联动保证不会同时为真。
+    if connection.smart_sizing:
         arguments.append("/smart-sizing:on")
+    elif connection.dynamic_resolution:
+        arguments.append("+dynamic-resolution")
     # 远程 Windows 端自己的桌面缩放（DPI）。auto 时按本机缩放折算，
     # 让远程字号与本地观感一致 —— 高分屏上远程字小一半，主因就是这里没下发。
     desktop_scale = resolve_desktop_scale(connection.desktop_scale, scale_factor)

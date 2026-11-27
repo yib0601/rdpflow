@@ -14,26 +14,41 @@ from rdpflow.models import Connection
 
 class ArgumentTests(unittest.TestCase):
     def test_default_experience_options(self):
+        """出厂默认下发智能缩放。
+
+        动态分辨率要服务端接受 DisplayControl 重设尺寸才兑现，
+        gnome-remote-desktop 这类绑死物理显示器的实现会无视它
+        （实测请求 /size:1392x784，服务端回 ResetGraphics 1920x1080），
+        窗口一放大画面就缩在左上角、其余是没画过的纯黑。智能缩放纯客户端侧，
+        不依赖服务端，因此它是默认。
+        """
         profile = Connection(host="192.0.2.10", username="alice")
         arguments = build_arguments(profile, "secret")
         self.assertIn("/v:192.0.2.10", arguments)
         self.assertIn("/p:secret", arguments)
-        self.assertIn("+dynamic-resolution", arguments)
-        self.assertNotIn("/smart-sizing:on", arguments)
+        self.assertIn("/smart-sizing:on", arguments)
+        self.assertNotIn("+dynamic-resolution", arguments)
         self.assertIn("+clipboard", arguments)
         self.assertIn("/cert:tofu", arguments)
 
-    def test_smart_sizing_is_used_without_dynamic_resolution(self):
-        profile = Connection(host="192.0.2.10", dynamic_resolution=False, smart_sizing=True)
+    def test_dynamic_resolution_is_used_when_smart_sizing_is_off(self):
+        profile = Connection(host="192.0.2.10", dynamic_resolution=True, smart_sizing=False)
+        arguments = build_arguments(profile, None)
+        self.assertIn("+dynamic-resolution", arguments)
+        self.assertNotIn("/smart-sizing:on", arguments)
+
+    def test_smart_sizing_wins_when_both_are_enabled(self):
+        """两者都开时下发智能缩放：与 models.effective_scaling 保持同一答案。"""
+        profile = Connection(host="192.0.2.10", dynamic_resolution=True, smart_sizing=True)
         arguments = build_arguments(profile, None)
         self.assertIn("/smart-sizing:on", arguments)
         self.assertNotIn("+dynamic-resolution", arguments)
 
-    def test_dynamic_resolution_wins_when_both_are_enabled(self):
-        profile = Connection(host="192.0.2.10", dynamic_resolution=True, smart_sizing=True)
+    def test_no_scaling_switch_when_both_are_off(self):
+        profile = Connection(host="192.0.2.10", dynamic_resolution=False, smart_sizing=False)
         arguments = build_arguments(profile, None)
-        self.assertIn("+dynamic-resolution", arguments)
         self.assertNotIn("/smart-sizing:on", arguments)
+        self.assertNotIn("+dynamic-resolution", arguments)
 
     def test_compatibility_mode_disables_graphics_pipeline(self):
         profile = Connection(host="192.0.2.10", quality="compatibility")

@@ -37,6 +37,12 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.3.1" date="2026-11-27">
+      <description>
+        <p>Scaling now defaults to smart sizing, so enlarging the window fills the canvas instead of leaving the session in the top-left corner.</p>
+        <p>Existing settings are migrated to the new default, while connections that chose dynamic resolution keep it.</p>
+      </description>
+    </release>
     <release version="0.3.0" date="2026-11-27">
       <description>
         <p>The interface now speaks English as well as Chinese, following the system locale.</p>

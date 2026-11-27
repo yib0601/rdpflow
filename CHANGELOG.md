@@ -3,6 +3,25 @@
 本文件格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+## [0.3.1] - 2026-11-27
+
+### Fixed
+
+- **窗口放大后画面只占左上角、其余是纯黑**。根因是出厂默认下发 `+dynamic-resolution`，
+  而动态分辨率要服务端接受 DisplayControl 的重设尺寸请求才兑现：gnome-remote-desktop
+  把 RDP 分辨率绑在物理显示器上，实测请求 `/size:1392x784` 时它回的仍是
+  `ResetGraphics 1920x1080`，客户端于是把 1392×784 的画面按 1:1 贴在左上角，
+  余下区域（用户截图里 1992×1133 的客户区）从未被绘制，表现为黑边。
+  出厂默认改为只开**智能缩放**（纯客户端侧缩放，不依赖服务端），并让
+  `freerdp.build_arguments` 与 `models.effective_scaling` 都以智能缩放优先；
+  需要在服务端真正跟随窗口改分辨率的场景（如远程 Windows）仍可手动打开动态分辨率。
+- 配置迁移升到 `version: 3`：`version: 2` 里两个缩放开关**都为 true** 的连接
+  （即没动过开关、吃默认值的那批）改成只开智能缩放；主动只开其一的配置保持原样。
+- 两个缩放开关的 tooltip 说明改成真实差异（「不挑服务端」vs「服务端不支持时留黑边」），
+  不再宣称「同时开启时以动态分辨率生效」。
+
 ## [0.3.0] - 2026-11-27
 
 ### Added
@@ -135,7 +154,8 @@
 - RPM 打包（`build-rpm.sh` + `rdpflow.spec`）。
 - 单元测试与 GTK 冒烟测试。
 
-[Unreleased]: https://github.com/yib0601/rdpflow/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/yib0601/rdpflow/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/yib0601/rdpflow/releases/tag/v0.3.1
 [0.3.0]: https://github.com/yib0601/rdpflow/releases/tag/v0.3.0
 [0.2.0]: https://github.com/yib0601/rdpflow/releases/tag/v0.2.0
 [0.1.0]: https://github.com/yib0601/rdpflow/releases/tag/v0.1.0
