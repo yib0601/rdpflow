@@ -108,7 +108,12 @@ else
     exit 1
 fi
 
-"$iscc_bin" \
+# MSYS2_ARG_CONV_EXCL="*" 是必须的：MSYS2 会把看起来像 POSIX 路径的参数改写成
+# Windows 路径，"/DAppVersion=0.3.0" 被改写成 "D:/.../DAppVersion=0.3.0" 之后，
+# ISCC 就把它当成第二个脚本文件名，报
+# "You may not specify more than one script filename."（CI 上两架构同时红）。
+# 星号表示这一行所有参数都不做转换。
+MSYS2_ARG_CONV_EXCL='*' "$iscc_bin" \
     "/DAppVersion=$version" \
     "/DArch=$arch" \
     "/DArchAllowed=$allowed" \
