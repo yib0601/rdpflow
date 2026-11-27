@@ -317,6 +317,8 @@ jobs:
       - name: Every expected asset is attached and non-empty
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # gh 默认从 git remote 里找仓库；这个 job 不 checkout，必须显式给。
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.verify.outputs.tag }}
           VERSION: ${{ needs.verify.outputs.version }}
         run: |
