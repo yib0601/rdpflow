@@ -192,6 +192,15 @@ jobs:
           rdpflow --version
           rdpflow --self-check
 
+      - name: Install FreeRDP for the portable check
+        if: matrix.kind == 'portable'
+        run: |
+          # 便携包是"自带 Python 代码、用宿主的 GTK 与 FreeRDP"，自检会去找 xfreerdp3。
+          # ubuntu runner 不预装 FreeRDP，不装它自检必然报「未找到 FreeRDP」。
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends freerdp3-x11 \
+            || sudo apt-get install -y --no-install-recommends freerdp2-x11
+
       - name: Self-check the portable tree
         if: matrix.kind == 'portable'
         run: |
@@ -204,8 +213,9 @@ jobs:
           # 必须指定系统解释器：actions/setup-python 装的 3.13 排在 PATH 最前，
           # 它没有 PyGObject，直接用就报 No module named 'gi'（实测）。
           # 便携包本来也不自带 GTK，靠的就是宿主的 python3-gi。
-          RDPFLOW_PYTHON=/usr/bin/python3 ./self-check.sh
-          RDPFLOW_PYTHON=/usr/bin/python3 ./bin/rdpflow --version
+          export RDPFLOW_PYTHON=/usr/bin/python3
+          ./self-check.sh
+          ./bin/rdpflow --version
 
       - name: Self-check the wheel in a clean venv
         if: matrix.kind == 'python'
@@ -275,8 +285,12 @@ jobs:
           sudo apt-get update
           # elfutils 提供 eu-strip：flatpak-builder 在导出阶段用它拆 debuginfo，
           # 缺了就报 module freerdp: Failed to execute child process "eu-strip"。
+          # librsvg2-common 提供 SVG 的 gdk-pixbuf 加载器：appstreamcli compose 要把
+          # 应用图标栅格化成 media 里的 PNG，加载器缺失时 SVG 读不出来，只剩
+          # file-read-error + filters-but-no-output（在 ubuntu:24.04 容器里加/不加
+          # 这个包做差分，结论是它决定了 compose 成不成）。
           sudo apt-get install -y --no-install-recommends \
-            flatpak flatpak-builder elfutils curl
+            flatpak flatpak-builder elfutils librsvg2-common curl
 
       - name: Install GNOME runtime and SDK
         run: |
