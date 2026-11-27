@@ -50,7 +50,19 @@ jobs:
           done
 
       - name: Validate RPM spec
-        run: rpmspec -P rdpflow.spec > /dev/null
+        run: |
+          rpmspec -P rdpflow.spec > /dev/null
+          # %files 里没展开的宏（例如 Debian 的 rpm 不定义 _metainfodir）会让
+          # rpmbuild 在打包末尾才报 'File must begin with "/"'，而 rpmspec -P
+          # 照样通过。这里直接检查展开后的 files 列表：%license/%doc 这类小写
+          # 指令前缀之外、既不以 %{ 也不以 / 开头的条目，就是漏展开的路径。
+          bad="$(rpmspec -P rdpflow.spec \
+            | sed -n '/^%files$/,/^%changelog$/p' \
+            | grep -v '^%[a-z]' | grep -v '^$' | grep -v '^/')" || true
+          if [ -n "$bad" ]; then
+            echo "::error::%files 里这些条目不以 / 开头，说明有宏没展开：$bad"
+            exit 1
+          fi
 
       - name: Validate desktop entry
         run: |

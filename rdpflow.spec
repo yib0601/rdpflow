@@ -1,3 +1,8 @@
+# 这个宏只有 Fedora 系的 rpm macros 定义它。Debian 打包的 rpm 没有，构建时它原样
+# 留在 files 列表里，被 "File must begin with /" 拒掉（CI 的 ubuntu runner 实测）。
+# 缺的时候就地补成应用商店约定路径；已有定义时下面这行是空操作，Fedora 上仍用原值。
+%{!?_metainfodir:%global _metainfodir %{_datadir}/metainfo}
+
 Name:           rdpflow
 Version:        0.3.0
 # 构建号由 build-rpm.sh 通过 --define build_release=<n> 传入（RELEASE 环境变量），
