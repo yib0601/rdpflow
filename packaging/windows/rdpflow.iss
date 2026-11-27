@@ -51,7 +51,10 @@ ArchitecturesInstallIn64BitMode={#ArchAllowed}
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 UninstallDisplayIcon={app}\{#AppExeName}
-SetupIconFile=..\packaging\windows\rdpflow.ico
+; 相对路径一律相对本文件所在目录（ISCC 的规矩）。图标就在同目录，不要再拼一遍
+; packaging/windows —— 之前写成 ..\packaging\windows\rdpflow.ico，解析出来是
+; packaging/packaging/windows/rdpflow.ico，文件根本不存在。
+SetupIconFile=rdpflow.ico
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -62,7 +65,9 @@ Name: "associate"; Description: "把 rdp:// 链接交给 RDPFlow 打开"; GroupD
 
 [Files]
 ; 整棵 PyInstaller 产物树；excludes 去掉调试符号与 PyInstaller 的中间文件。
-Source: "..\..\build\RDPFlow\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; PyInstaller 用 --distpath 把 one-dir 产到 dist/RDPFlow（不是 build/RDPFlow），
+; 这里必须跟着改，否则 ISCC 报 "No files found matching ... build\RDPFlow\*"。
+Source: "..\..\dist\RDPFlow\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"

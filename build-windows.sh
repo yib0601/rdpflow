@@ -108,16 +108,19 @@ else
     exit 1
 fi
 
-# MSYS2_ARG_CONV_EXCL="*" 是必须的：MSYS2 会把看起来像 POSIX 路径的参数改写成
-# Windows 路径，"/DAppVersion=0.3.0" 被改写成 "D:/.../DAppVersion=0.3.0" 之后，
-# ISCC 就把它当成第二个脚本文件名，报
-# "You may not specify more than one script filename."（CI 上两架构同时红）。
-# 星号表示这一行所有参数都不做转换。
+# 两个坑一起踩过，这里一次说清：
+#  1) 不屏蔽转换时，MSYS2 把 "/DAppVersion=0.3.0" 当 POSIX 路径改写成
+#     "D:/.../DAppVersion=0.3.0"，ISCC 把它当成第二个脚本文件名，报
+#     "You may not specify more than one script filename."。
+#  2) 只屏蔽不转换（MSYS2_ARG_CONV_EXCL='*'）时脚本路径 "/d/a/..." 也原样送进去，
+#     Windows 程序看不懂，ISCC 只打出用法帮助（"Usage: iscc [options] scriptfile.iss"）。
+# 所以：/D 开关整行不做转换，脚本路径自己用 cygpath 转成 Windows 形式。
+iss_script="$(cygpath -w "$project_dir/packaging/windows/rdpflow.iss")"
 MSYS2_ARG_CONV_EXCL='*' "$iscc_bin" \
     "/DAppVersion=$version" \
     "/DArch=$arch" \
     "/DArchAllowed=$allowed" \
-    "$project_dir/packaging/windows/rdpflow.iss"
+    "$iss_script"
 
 installer="$dist_dir/rdpflow-${version}-windows-${arch}.exe"
 if [ ! -f "$installer" ]; then
