@@ -129,6 +129,33 @@ def self_check() -> dict[str, object]:
     }
 
 
+def _emit(text: str) -> None:
+    """把一段 UTF-8 文本打到标准输出，控制台编码不支持时也要打完。
+
+    自检结果里有中文提示（例如「未找到 FreeRDP」）。Windows 的控制台代码页常是
+    cp1252/cp936，直接 print 会抛 UnicodeEncodeError 并让整个自检变成崩溃——
+    CI 上就是这样：PyInstaller 产物构建成功，却在打印报告这一步把构建步骤打红，
+    而且日志里只有一段 traceback，看不到真正想看的检查结果。
+    两条退路依次用：先把 stdout 换成 UTF-8（内容保持原样），不成再退回纯 ASCII
+    的 JSON（中文变成反斜杠 u 开头的转义序列，机器照样读得懂）。
+    """
+    for attempt in range(2):
+        try:
+            print(text)
+            return
+        except UnicodeEncodeError:
+            if attempt == 0:
+                reconfigure = getattr(sys.stdout, "reconfigure", None)
+                if reconfigure is None:
+                    break
+                try:
+                    reconfigure(encoding="utf-8", errors="replace")
+                except (ValueError, OSError):
+                    break
+            else:
+                break
+    print(json.dumps(json.loads(text), ensure_ascii=True, indent=2))
+
 def _take_option(arguments: list[str], name: str) -> str | None:
     """取出 `--name VALUE` 或 `--name=VALUE`，取到就从列表里摘掉。
 
@@ -161,11 +188,13 @@ def main(argv: list[str] | None = None) -> int:
     if "--self-check" in arguments:
         report = self_check()
         payload = json.dumps(report, ensure_ascii=False, indent=2)
-        print(payload)
+        # 落盘先于打印：自检的价值是"结果能被机器读到"，控制台编码出问题时
+        # 文件仍必须是完整的 UTF-8。
         if json_out:
             from pathlib import Path
 
             Path(json_out).write_text(payload + "\n", encoding="utf-8")
+        _emit(payload)
         return 0 if report["ok"] else 1
 
     urls = [item for item in arguments if not item.startswith("-")]
