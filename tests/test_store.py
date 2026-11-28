@@ -4,7 +4,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from rdpflow.models import Connection, default_experience_options
+from rdpflow.models import (
+    WINDOW_FIT_CLIENT,
+    WINDOW_FIT_OFF,
+    WINDOW_FIT_SERVER,
+    Connection,
+    default_experience_options,
+)
 from rdpflow.store import ConnectionStore
 
 
@@ -115,12 +121,12 @@ class MigrationTests(unittest.TestCase):
         )
         store = ConnectionStore(self.path)
         store.save(store.load())
-        self.assertEqual(json.loads(self.path.read_text(encoding="utf-8"))["version"], 3)
+        self.assertEqual(json.loads(self.path.read_text(encoding="utf-8"))["version"], 4)
 
     def test_current_version_is_untouched(self):
         self.write_document(
             {
-                "version": 3,
+                "version": 4,
                 "connections": [{"name": "新", "host": "192.0.2.10", "resolution": "1920x1080"}],
             }
         )
@@ -129,8 +135,8 @@ class MigrationTests(unittest.TestCase):
         self.assertFalse(store.migrated)
         self.assertEqual(connections[0].resolution, "1920x1080")
 
-    def test_v2_default_scaling_pair_becomes_smart_sizing_only(self):
-        """v2 出厂默认是「两项都开」，那批连接用户没动过，跟着升级成只开智能缩放。"""
+    def test_legacy_scaling_pair_becomes_client_fit(self):
+        """v2 出厂默认是「两项都开」，那批连接用户没动过，跟着升级成客户端缩放。"""
         self.write_document(
             {
                 "version": 2,
@@ -159,12 +165,9 @@ class MigrationTests(unittest.TestCase):
         store = ConnectionStore(self.path)
         connections = store.load()
         self.assertTrue(store.migrated)
-        self.assertFalse(connections[0].dynamic_resolution)
-        self.assertTrue(connections[0].smart_sizing)
-        self.assertTrue(connections[1].dynamic_resolution)
-        self.assertFalse(connections[1].smart_sizing)
-        self.assertFalse(connections[2].dynamic_resolution)
-        self.assertFalse(connections[2].smart_sizing)
+        self.assertEqual(connections[0].window_fit, WINDOW_FIT_CLIENT)
+        self.assertEqual(connections[1].window_fit, WINDOW_FIT_SERVER)
+        self.assertEqual(connections[2].window_fit, WINDOW_FIT_OFF)
 
     def test_v2_defaults_block_scaling_is_migrated(self):
         self.write_document(
@@ -176,8 +179,68 @@ class MigrationTests(unittest.TestCase):
         )
         store = ConnectionStore(self.path)
         store.load()
-        self.assertFalse(store.defaults["dynamic_resolution"])
-        self.assertTrue(store.defaults["smart_sizing"])
+        self.assertEqual(store.defaults["window_fit"], WINDOW_FIT_CLIENT)
+        self.assertNotIn("smart_sizing", store.defaults)
+
+    def test_v3_connections_are_translated_to_window_fit(self):
+        """v3 里只写 dynamic_resolution 的条目，smart_sizing 吃默认值 True，
+        实际生效的一直是客户端缩放，所以迁移后仍是 client 而不是 server。"""
+        self.write_document(
+            {
+                "version": 3,
+                "connections": [
+                    {"name": "智能缩放", "host": "192.0.2.10", "smart_sizing": True},
+                    {
+                        "name": "动态分辨率",
+                        "host": "192.0.2.11",
+                        "dynamic_resolution": True,
+                        "smart_sizing": False,
+                    },
+                    {
+                        "name": "都没开",
+                        "host": "192.0.2.12",
+                        "dynamic_resolution": False,
+                        "smart_sizing": False,
+                    },
+                ],
+            }
+        )
+        store = ConnectionStore(self.path)
+        connections = store.load()
+        self.assertTrue(store.migrated)
+        self.assertEqual(connections[0].window_fit, WINDOW_FIT_CLIENT)
+        self.assertEqual(connections[1].window_fit, WINDOW_FIT_SERVER)
+        self.assertEqual(connections[2].window_fit, WINDOW_FIT_OFF)
+
+    def test_v3_entry_with_only_dynamic_resolution_stays_client(self):
+        self.write_document(
+            {
+                "version": 3,
+                "connections": [{"name": "只写了动态分辨率", "host": "192.0.2.10", "dynamic_resolution": True}],
+            }
+        )
+        connections = ConnectionStore(self.path).load()
+        self.assertEqual(connections[0].window_fit, WINDOW_FIT_CLIENT)
+
+    def test_migrated_document_drops_the_legacy_switches(self):
+        self.write_document(
+            {
+                "version": 3,
+                "connections": [
+                    {
+                        "name": "旧",
+                        "host": "192.0.2.10",
+                        "dynamic_resolution": False,
+                        "smart_sizing": True,
+                    }
+                ],
+            }
+        )
+        ConnectionStore(self.path).load()
+        saved = json.loads(self.path.read_text(encoding="utf-8"))["connections"][0]
+        self.assertEqual(saved["window_fit"], WINDOW_FIT_CLIENT)
+        self.assertNotIn("dynamic_resolution", saved)
+        self.assertNotIn("smart_sizing", saved)
 
     def test_unknown_version_is_still_rejected(self):
         self.write_document({"version": 99, "connections": []})

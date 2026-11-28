@@ -16,17 +16,19 @@ from .models import (
     DESKTOP_SCALES,
     DESKTOP_SCALE_AUTO,
     DISPLAY_MODES,
+    EXPERIENCE_DEFAULTS,
     EXPERIENCE_FIELDS,
     QUALITY_PRESETS,
     RESOLUTION_AUTO,
     RESOLUTIONS,
+    WINDOW_FIT_CLIENT,
+    WINDOW_FIT_OFF,
+    WINDOW_FIT_SERVER,
+    WINDOW_FITS,
     Connection,
     apply_experience_options,
     default_experience_options,
-    effective_scaling,
-    overridden_switches,
     parse_endpoint,
-    toggle_switch,
 )
 
 
@@ -35,8 +37,7 @@ EXPERIENCE_LABELS = {
     "resolution": _("窗口分辨率"),
     "desktop_scale": _("远程桌面缩放"),
     "display_mode": _("显示方式"),
-    "dynamic_resolution": _("动态分辨率"),
-    "smart_sizing": _("智能缩放"),
+    "window_fit": _("窗口适配"),
     "clipboard": _("共享剪贴板"),
     "auto_reconnect": _("断线自动重连"),
 }
@@ -60,6 +61,20 @@ DESKTOP_SCALE_LABELS = {
     "175": "175%",
     "200": "200%",
 }
+# 三个状态对应三种真实可行的下发组合，顺序按「多数人该用哪个」排：
+# 客户端缩放对所有服务端都成立，服务端改分辨率只在 Windows 目标上兑现。
+WINDOW_FIT_LABELS = {
+    WINDOW_FIT_CLIENT: _("客户端缩放（推荐）"),
+    WINDOW_FIT_SERVER: _("服务端改分辨率"),
+    WINDOW_FIT_OFF: _("关闭"),
+}
+# 三态的取舍只在 tooltip 里说一次：客户端缩放任何服务端都兑现（放大是位图放大，
+# 略软但铺满）；服务端改分辨率画面原生清晰，但要服务端接受 DisplayControl 重设尺寸，
+# 绑死物理显示器的服务端（如 gnome-remote-desktop）会无视它、留黑边。
+WINDOW_FIT_HINT = _(
+    "客户端缩放：画面缩放到窗口，不挑服务端；服务端改分辨率：远程分辨率真的跟着窗口变，"
+    "但服务端不支持时窗口变大会留黑边；关闭：画面 1:1，不缩放。"
+)
 
 
 def option_label(field_name: str, value: object) -> str:
@@ -74,6 +89,8 @@ def option_label(field_name: str, value: object) -> str:
         return RESOLUTION_LABELS.get(str(value), str(value))
     if field_name == "desktop_scale":
         return DESKTOP_SCALE_LABELS.get(str(value), str(value))
+    if field_name == "window_fit":
+        return WINDOW_FIT_LABELS.get(str(value), str(value))
     if isinstance(value, bool):
         return _("开启") if value else _("关闭")
     return str(value)
@@ -84,10 +101,11 @@ KEYRING_UNAVAILABLE_HINT = _("这台机器没有可用的密码库，密码只�
 
 
 class ExperienceRows:
-    """「连接配置」这一组控件，详情页与编辑器共用同一套构造与互斥规则。
+    """「连接配置」这一组控件，详情页与编辑器共用同一套构造规则。
 
     放在 dialogs.py：它只负责把模型里的配置字段变成可交互控件，
-    互斥判定仍由 models.toggle_switch 提供，UI 层不复制一份规则。
+    合法值判定仍由 models.apply_experience_options 提供，UI 层不复制一份规则。
+    窗口适配是三态下拉而不是两个开关，所以这里不再有任何互斥联动代码。
     """
 
     def __init__(self, options: dict[str, object], defaults: dict[str, object]) -> None:
@@ -99,7 +117,7 @@ class ExperienceRows:
     def switch(self, field_name: str, title: str, tooltip: str = "") -> Adw.SwitchRow:
         # 不写副标题：开关当前值就在开关上，默认值由「恢复全局默认」负责，
         # 每行再写一句「默认：开启」等于把同一件事说两遍。
-        # 确实要说清的（互斥规则、重试上限）挂 tooltip：停上去才出现，不占版面。
+        # 确实要说清的（重试上限）挂 tooltip：停上去才出现，不占版面。
         row = Adw.SwitchRow()
         row.set_title(title)
         if tooltip:
@@ -119,30 +137,29 @@ class ExperienceRows:
         self.combos[field_name] = row
         return row
 
-    def set_option(self, field_name: str, value: object) -> tuple[dict[str, object], str | None]:
-        """写入一个选项并同步互斥开关；返回新选项与本次被自动关掉的搭档名。"""
-        before = dict(self.options)
-        if isinstance(value, bool):
-            self.options = toggle_switch(self.options, field_name, value)
+    def set_option(self, field_name: str, value: object) -> None:
+        """写入一个选项并回填控件。
+
+        布尔字段按布尔处理，其余原样写入 —— 统一 bool() 会把 "2560x1440" 变成 True。
+        """
+        if isinstance(EXPERIENCE_DEFAULTS[field_name], bool):
+            self.options[field_name] = bool(value)
         else:
-            self.options = {**self.options, field_name: value}
-        disabled = next(
-            (
-                key
-                for key, previous in before.items()
-                if previous and not self.options.get(key) and key != field_name
-            ),
-            None,
-        )
+            self.options[field_name] = value
         self.sync_widgets()
-        return self.options, disabled
 
     def sync_widgets(self) -> None:
-        """把当前选项回写到控件，避免互斥自动关闭后界面与实际值不一致。"""
+        """把当前选项回写到控件，保证控件显示与实际存储值一致。"""
         for field_name, row in self.switches.items():
             active = bool(self.options.get(field_name))
             if row.get_active() != active:
                 row.set_active(active)
+        for field_name, row in self.combos.items():
+            wanted = option_label(field_name, self.options.get(field_name))
+            for index, label in enumerate(self._labels(row)):
+                if label == wanted and row.get_selected() != index:
+                    row.set_selected(index)
+                    break
 
     def reset(self) -> None:
         self.options = dict(self.defaults)
@@ -450,18 +467,11 @@ class ConnectionEditorDialog(Adw.Dialog):
             "display_mode", _("显示方式"), DISPLAY_MODES, DISPLAY_LABELS
         )
         experience.add(self.display_mode)
-        self.dynamic_resolution = self.experience_rows.switch(
-            "dynamic_resolution",
-            _("动态分辨率"),
-            _("请求服务端跟随窗口改分辨率；服务端不支持时窗口变大会留黑边"),
+        self.window_fit = self.experience_rows.combo(
+            "window_fit", _("窗口适配"), WINDOW_FITS, WINDOW_FIT_LABELS
         )
-        experience.add(self.dynamic_resolution)
-        self.smart_sizing = self.experience_rows.switch(
-            "smart_sizing",
-            _("智能缩放"),
-            _("缩放画面适配窗口，不挑服务端；与动态分辨率互斥，同时开启时以它生效"),
-        )
-        experience.add(self.smart_sizing)
+        self.window_fit.set_tooltip_text(WINDOW_FIT_HINT)
+        experience.add(self.window_fit)
         self.clipboard = self.experience_rows.switch("clipboard", _("共享剪贴板"))
         experience.add(self.clipboard)
         self.auto_reconnect = self.experience_rows.switch(
@@ -492,14 +502,7 @@ class ConnectionEditorDialog(Adw.Dialog):
         self.make_default.set_active(False)
         experience.add(self.make_default)
 
-        self.hint = Gtk.Label(label="", xalign=0)
-        self.hint.add_css_class("muted")
-        self.hint.set_wrap(True)
-        self.hint.set_visible(False)
-        experience.add(self.hint)
-
         self._connect_experience_rows()
-        self._update_hint()
 
         resources = Adw.PreferencesGroup()
         resources.set_title(_("本地资源"))
@@ -579,43 +582,15 @@ class ConnectionEditorDialog(Adw.Dialog):
                 lambda widget, _pspec, key=field_name: self._on_combo_changed(key, widget),
             )
 
-    def _update_hint(self, disabled: str | None = None) -> None:
-        """刷新提示行。
-
-        disabled 是本次被联动关掉的开关：「我开了 A，B 就被关了」这件事必须说出来，
-        否则用户会以为自己的选择没被记住。没有联动时再看有没有「开着但没生效」的项。
-        """
-        if disabled:
-            self.hint.set_label(
-                _("已联动关闭{name}：FreeRDP 不接受动态分辨率与智能缩放同时下发，两者只能留一个。").format(
-                    name=EXPERIENCE_LABELS.get(disabled, disabled)
-                )
-            )
-            self.hint.set_visible(True)
-            return
-        overridden = overridden_switches(self.experience_rows.options)
-        if not overridden:
-            self.hint.set_visible(False)
-            return
-        effective = effective_scaling(self.experience_rows.options)
-        self.hint.set_label(
-            _("{name}当前未生效：FreeRDP 不接受它与{partner}同时下发。").format(
-                name=EXPERIENCE_LABELS.get(overridden[0], overridden[0]),
-                partner=EXPERIENCE_LABELS.get(effective, effective),
-            )
-        )
-        self.hint.set_visible(True)
-
     def _on_switch_changed(self, field_name: str, widget: Adw.SwitchRow) -> None:
         if self._syncing:
             return
-        # 互斥联动会写回控件，写回本身又会发 notify::active，用同一个标志挡住重入。
+        # 回写控件本身也会发 notify::active，用同一个标志挡住重入。
         self._syncing = True
         try:
-            _, disabled = self.experience_rows.set_option(field_name, widget.get_active())
+            self.experience_rows.set_option(field_name, widget.get_active())
         finally:
             self._syncing = False
-        self._update_hint(disabled)
 
     def _on_combo_changed(self, field_name: str, widget: Adw.ComboRow) -> None:
         if self._syncing:
@@ -625,6 +600,7 @@ class ConnectionEditorDialog(Adw.Dialog):
             "resolution": RESOLUTIONS,
             "desktop_scale": DESKTOP_SCALES,
             "display_mode": DISPLAY_MODES,
+            "window_fit": WINDOW_FITS,
         }[field_name]
         index = widget.get_selected()
         if 0 <= index < len(values):
@@ -636,7 +612,6 @@ class ConnectionEditorDialog(Adw.Dialog):
             self.experience_rows.reset()
         finally:
             self._syncing = False
-        self._update_hint()
 
     def experience_payload(self) -> dict[str, object]:
         """当前配置项 + 不在默认值集合里的音频与壁纸，一次性交给保存流程。"""

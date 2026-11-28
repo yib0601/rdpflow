@@ -5,6 +5,23 @@
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-11-28
+
+### Changed
+
+- **「动态分辨率」与「智能缩放」合并成一个三态「窗口适配」下拉**（客户端缩放 / 服务端改分辨率 /
+  关闭）。FreeRDP 只接受三种组合，用两个布尔开关存一件三选一的事，就得为「同时开启」这个
+  不可能的状态维护联动关闭、提示行、toast 和「未下发」日志四处代码。合并后互斥关系由结构保证：
+  模型里只有一个 `window_fit` 字段，下发时最多带一个开关。
+- 消掉的代码：`models.conflicting_switch` / `toggle_switch` / `effective_scaling` /
+  `overridden_switches` 与 `EXCLUSIVE_SWITCHES`；`dialogs.ExperienceRows` 的联动回写与
+  `_update_hint`；详情页的「已联动关闭」toast 与「未下发」日志。出厂默认仍是客户端缩放，
+  行为与前一个版本一致。
+- `ExperienceRows.set_option` 不再有联动返回值，`Connection.set_experience_option` 同理。
+- 配置升到 `version: 4`：`version: 2`/`3` 的两个缩放开关按
+  `(dynamic_resolution, smart_sizing)` 折算成 `window_fit`（`(true, false)` → `server`，
+  其余开着的组合 → `client`，两项都关 → `off`），迁移后老字段从配置文件里删除。
+
 ## [0.3.1] - 2026-11-27
 
 ### Fixed
@@ -154,7 +171,8 @@
 - RPM 打包（`build-rpm.sh` + `rdpflow.spec`）。
 - 单元测试与 GTK 冒烟测试。
 
-[Unreleased]: https://github.com/yib0601/rdpflow/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/yib0601/rdpflow/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/yib0601/rdpflow/releases/tag/v0.3.2
 [0.3.1]: https://github.com/yib0601/rdpflow/releases/tag/v0.3.1
 [0.3.0]: https://github.com/yib0601/rdpflow/releases/tag/v0.3.0
 [0.2.0]: https://github.com/yib0601/rdpflow/releases/tag/v0.2.0

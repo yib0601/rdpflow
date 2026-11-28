@@ -12,7 +12,7 @@ from typing import Callable
 from . import runtime
 
 from .i18n import _
-from .models import Connection, resolve_desktop_scale
+from .models import WINDOW_FIT_CLIENT, WINDOW_FIT_SERVER, Connection, resolve_desktop_scale
 
 
 class FreeRDPError(RuntimeError):
@@ -113,16 +113,17 @@ def build_arguments(
         arguments.append("/f")
     elif connection.display_mode == "monitors":
         arguments.append("/multimon")
-    # FreeRDP 把这两个开关当互斥项，同时下发会直接拒绝启动：
+    # 窗口适配只认一个字段，因此这里一次最多带一个开关：FreeRDP 把这两个选项
+    # 当互斥项，同时下发会直接拒绝启动：
     #   [ERROR] [parse_smart_sizing_options]: Smart sizing and dynamic resolution
     #   are mutually exclusive options
-    # 智能缩放排前面：它只做客户端侧缩放，任何服务端都兑现；动态分辨率要服务端
-    # 接受 DisplayControl 重设尺寸，gnome-remote-desktop 之类绑死物理显示器的实现
-    # 会无视它（实测请求 /size:1392x784，服务端回 ResetGraphics 1920x1080），
-    # 窗口一放大就只剩左上角一块画面。两者都开时仍由界面联动保证不会同时为真。
-    if connection.smart_sizing:
+    # client（智能缩放）只做客户端侧缩放，任何服务端都兑现；
+    # server（动态分辨率）要服务端接受 DisplayControl 重设尺寸，gnome-remote-desktop
+    # 之类绑死物理显示器的实现会无视它（实测请求 /size:1392x784，服务端回
+    # ResetGraphics 1920x1080），窗口一放大就只剩左上角一块画面。
+    if connection.window_fit == WINDOW_FIT_CLIENT:
         arguments.append("/smart-sizing:on")
-    elif connection.dynamic_resolution:
+    elif connection.window_fit == WINDOW_FIT_SERVER:
         arguments.append("+dynamic-resolution")
     # 远程 Windows 端自己的桌面缩放（DPI）。auto 时按本机缩放折算，
     # 让远程字号与本地观感一致 —— 高分屏上远程字小一半，主因就是这里没下发。

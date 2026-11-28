@@ -18,6 +18,8 @@ from .dialogs import (
     EXPERIENCE_LABELS,
     QUALITY_LABELS,
     RESOLUTION_LABELS,
+    WINDOW_FIT_HINT,
+    WINDOW_FIT_LABELS,
     ConnectionEditorDialog,
     ExperienceRows,
     PasswordDialog,
@@ -38,9 +40,8 @@ from .models import (
     DISPLAY_MODES,
     QUALITY_PRESETS,
     RESOLUTIONS,
+    WINDOW_FITS,
     Connection,
-    effective_scaling,
-    overridden_switches,
     parse_endpoint,
     resolve_desktop_scale,
     utc_now,
@@ -149,7 +150,7 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         elif self.store.migrated:
             GLib.idle_add(
                 self.show_toast,
-                _("已升级老配置：分辨率改为「自动」，缩放改为「智能缩放」"),
+                _("已升级老配置：分辨率改为「自动」，缩放合并为「窗口适配」"),
             )
 
     def _build_ui(self) -> None:
@@ -706,9 +707,16 @@ class RDPFlowWindow(Adw.ApplicationWindow):
             ),
         )
         experience.append(display)
+        window_fit = rows.combo("window_fit", _("窗口适配"), WINDOW_FITS, WINDOW_FIT_LABELS)
+        window_fit.set_tooltip_text(WINDOW_FIT_HINT)
+        window_fit.connect(
+            "notify::selected",
+            lambda widget, _pspec: self.update_experience(
+                "window_fit", WINDOW_FITS[widget.get_selected()]
+            ),
+        )
+        experience.append(window_fit)
         for field_name, tooltip in (
-            ("dynamic_resolution", _("请求服务端跟随窗口改分辨率；服务端不支持时窗口变大会留黑边")),
-            ("smart_sizing", _("缩放画面适配窗口，不挑服务端；与动态分辨率互斥，同时开启时以它生效")),
             ("clipboard", ""),
             ("auto_reconnect", _("断开后自动重试，最多 5 次")),
         ):
@@ -805,13 +813,13 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         self.refresh_recent()
 
     def update_experience(self, field_name: str, value: object) -> None:
-        """详情页改配置项：写入连接、联动互斥开关，并提示让位原因。"""
+        """详情页改配置项：写入连接并回填控件。"""
         profile = self.selected_connection()
         if not profile or self._syncing_experience:
             return
         self._syncing_experience = True
         try:
-            disabled = profile.set_experience_option(field_name, value)
+            profile.set_experience_option(field_name, value)
             rows = self.detail_experience
             if rows is not None:
                 rows.options = profile.experience_options()
@@ -820,12 +828,6 @@ class RDPFlowWindow(Adw.ApplicationWindow):
             self._syncing_experience = False
         self.persist()
         self.refresh_sidebar()
-        if disabled:
-            self.show_toast(
-                _("已联动关闭{name}：FreeRDP 不接受动态分辨率与智能缩放同时下发").format(
-                    name=EXPERIENCE_LABELS[disabled]
-                )
-            )
 
     def restore_experience_defaults(self, profile: Connection) -> None:
         profile.apply_defaults(self.store.defaults)
@@ -971,14 +973,9 @@ class RDPFlowWindow(Adw.ApplicationWindow):
         desktop_scale = resolve_desktop_scale(profile.desktop_scale, scale_factor)
         if desktop_scale:
             self.append_log(_("远程桌面缩放：{scale}%").format(scale=desktop_scale))
-        options = profile.experience_options()
-        for field_name in overridden_switches(options):
-            self.append_log(
-                _("{name}未下发：与{partner}互斥（FreeRDP 会拒绝同时使用）").format(
-                    name=EXPERIENCE_LABELS[field_name],
-                    partner=EXPERIENCE_LABELS[effective_scaling(options)],
-                )
-            )
+        self.append_log(
+            _("窗口适配：{fit}").format(fit=WINDOW_FIT_LABELS[profile.window_fit])
+        )
         if profile.remember_password and password is not None:
             try:
                 self.keyring.save(profile.id, password)

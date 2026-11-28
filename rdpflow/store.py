@@ -11,6 +11,9 @@ from . import runtime
 from .i18n import _
 from .models import (
     RESOLUTION_AUTO,
+    WINDOW_FIT_CLIENT,
+    WINDOW_FIT_OFF,
+    WINDOW_FIT_SERVER,
     Connection,
     apply_experience_options,
     default_experience_options,
@@ -26,7 +29,10 @@ from .models import (
 #          在 gnome-remote-desktop 这类服务端上兑现不了，窗口一放大画面就缩在
 #          左上角留黑边。这类连接改写成像新默认一样只开智能缩放。
 #          两项都 false（用户主动关过）或只开其一的，保持原样。
-SCHEMA_VERSION = 3
+# v3 → v4：两个互斥开关合成一个三态 window_fit（client / server / off）。
+#          FreeRDP 只接受三种组合，用两个布尔存等于把一条规则摊成四处判断；
+#          三态值让「不可能的组合」在结构上就不存在。
+SCHEMA_VERSION = 4
 LEGACY_DEFAULT_RESOLUTION = "1920x1080"
 # v2 时代「两项都开着」的指纹：当时的出厂默认。
 LEGACY_SCALING_PAIR = {"dynamic_resolution": True, "smart_sizing": True}
@@ -76,16 +82,57 @@ def _migrate_v2_to_v3(raw: dict[str, Any]) -> dict[str, Any]:
     return upgraded
 
 
+def legacy_window_fit(item: dict[str, Any]) -> str:
+    """把 v3 的两个缩放开关翻译成 v4 的三态值。
+
+    缺字段按出厂默认（智能缩放开、动态分辨率关）补，与 v3 时代
+    Connection 的 dataclass 默认值一致。
+    """
+    dynamic = bool(item.get("dynamic_resolution") is True)
+    smart = item.get("smart_sizing")
+    smart = True if smart is None else bool(smart)
+    if dynamic and not smart:
+        return WINDOW_FIT_SERVER
+    if smart:
+        return WINDOW_FIT_CLIENT
+    return WINDOW_FIT_OFF
+
+
+def _with_window_fit(item: dict[str, Any]) -> dict[str, Any]:
+    """把一个老连接改写成 v4 结构：写 window_fit、删掉两个布尔开关。"""
+    upgraded = dict(item)
+    upgraded["window_fit"] = legacy_window_fit(item)
+    upgraded.pop("dynamic_resolution", None)
+    upgraded.pop("smart_sizing", None)
+    return upgraded
+
+
+def _migrate_v3_to_v4(raw: dict[str, Any]) -> dict[str, Any]:
+    upgraded = dict(raw)
+    upgraded["version"] = 4
+    upgraded["connections"] = [
+        _with_window_fit(item)
+        for item in raw.get("connections") or []
+        if isinstance(item, dict)
+    ]
+    defaults = raw.get("experience_defaults")
+    if isinstance(defaults, dict):
+        upgraded["experience_defaults"] = _with_window_fit(defaults)
+    return upgraded
+
+
 def migrate_document(raw: dict[str, Any]) -> tuple[dict[str, Any], bool]:
     """把老版本配置就地升级成最新结构，返回 (文档, 是否改动过)。"""
     version = raw.get("version")
     if version == SCHEMA_VERSION:
         return raw, False
     if version == 1:
-        return _migrate_v2_to_v3(_migrate_v1_to_v2(raw)), True
-    if version == 2:
-        return _migrate_v2_to_v3(raw), True
-    raise ValueError(_("不支持的配置文件版本"))
+        raw = _migrate_v2_to_v3(_migrate_v1_to_v2(raw))
+    elif version == 2:
+        raw = _migrate_v2_to_v3(raw)
+    elif version != 3:
+        raise ValueError(_("不支持的配置文件版本"))
+    return _migrate_v3_to_v4(raw), True
 
 
 class ConnectionStore:

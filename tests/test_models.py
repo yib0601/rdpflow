@@ -3,12 +3,14 @@ import unittest
 from rdpflow.models import (
     EXPERIENCE_DEFAULTS,
     RESOLUTION_AUTO,
+    WINDOW_FIT_CLIENT,
+    WINDOW_FIT_OFF,
+    WINDOW_FIT_SERVER,
+    WINDOW_FITS,
     Connection,
     apply_experience_options,
     canvas_for_screen,
     desktop_scale_percent,
-    effective_scaling,
-    overridden_switches,
     parse_endpoint,
     resolve_canvas,
     resolve_desktop_scale,
@@ -77,43 +79,38 @@ class ExperienceDefaultsTests(unittest.TestCase):
         self.assertEqual(resolved["quality"], EXPERIENCE_DEFAULTS["quality"])
         self.assertEqual(resolved["display_mode"], EXPERIENCE_DEFAULTS["display_mode"])
 
-    def test_toggling_smart_sizing_disables_dynamic_resolution(self):
+    def test_default_window_fit_is_client_scaling(self):
+        """出厂默认是客户端缩放：只有它不依赖服务端兑现。"""
         profile = Connection(host="desktop.example")
-        profile.set_experience_option("smart_sizing", True)
-        self.assertTrue(profile.smart_sizing)
-        self.assertFalse(profile.dynamic_resolution)
+        self.assertEqual(profile.window_fit, WINDOW_FIT_CLIENT)
 
-    def test_scaling_prefers_smart_sizing(self):
-        """两者都开时以智能缩放生效，与 build_arguments 的下发顺序一致。"""
-        options = {"dynamic_resolution": True, "smart_sizing": True}
-        self.assertEqual(effective_scaling(options), "smart_sizing")
-        self.assertEqual(overridden_switches(options), ("dynamic_resolution",))
+    def test_window_fit_is_a_single_three_state_value(self):
+        """互斥关系由结构保证：只有一个字段，不可能同时取两个值。"""
+        self.assertEqual(WINDOW_FITS, (WINDOW_FIT_CLIENT, WINDOW_FIT_SERVER, WINDOW_FIT_OFF))
+        for value in WINDOW_FITS:
+            self.assertEqual(apply_experience_options({"window_fit": value})["window_fit"], value)
 
-    def test_explicit_dynamic_resolution_is_effective_when_alone(self):
-        options = {"dynamic_resolution": True, "smart_sizing": False}
-        self.assertEqual(effective_scaling(options), "dynamic_resolution")
-        self.assertEqual(overridden_switches(options), ())
-
-    def test_no_scaling_when_both_off(self):
-        options = {"dynamic_resolution": False, "smart_sizing": False}
-        self.assertEqual(effective_scaling(options), "none")
-        self.assertEqual(overridden_switches(options), ())
+    def test_invalid_window_fit_falls_back_to_the_default(self):
+        self.assertEqual(
+            apply_experience_options({"window_fit": "both"})["window_fit"], WINDOW_FIT_CLIENT
+        )
+        self.assertEqual(
+            apply_experience_options({"window_fit": None})["window_fit"], WINDOW_FIT_CLIENT
+        )
 
     def test_set_experience_option_keeps_non_boolean_values(self):
         profile = Connection(host="desktop.example")
-        self.assertIsNone(profile.set_experience_option("resolution", "2560x1440"))
+        profile.set_experience_option("resolution", "2560x1440")
         self.assertEqual(profile.resolution, "2560x1440")
         profile.set_experience_option("quality", "quality")
         self.assertEqual(profile.quality, "quality")
 
-    def test_set_experience_option_reports_disabled_partner(self):
-        profile = Connection.with_defaults(
-            {"dynamic_resolution": False, "smart_sizing": False}, host="desktop.example"
-        )
-        profile.set_experience_option("smart_sizing", True)
-        self.assertEqual(profile.set_experience_option("dynamic_resolution", True), "smart_sizing")
-        self.assertTrue(profile.dynamic_resolution)
-        self.assertFalse(profile.smart_sizing)
+    def test_set_experience_option_writes_window_fit(self):
+        profile = Connection(host="desktop.example")
+        profile.set_experience_option("window_fit", WINDOW_FIT_SERVER)
+        self.assertEqual(profile.window_fit, WINDOW_FIT_SERVER)
+        profile.set_experience_option("window_fit", "nonsense")
+        self.assertEqual(profile.window_fit, WINDOW_FIT_CLIENT)
 
     def test_apply_defaults_overwrites_experience_fields(self):
         profile = Connection(host="desktop.example", quality="quality", clipboard=False)

@@ -4,7 +4,7 @@
 %{!?_metainfodir:%global _metainfodir %{_datadir}/metainfo}
 
 Name:           rdpflow
-Version:        0.3.1
+Version:        0.3.2
 # 构建号由 build-rpm.sh 通过 --define build_release=<n> 传入（RELEASE 环境变量），
 # 未传时回到 1。用自定义宏名而不是 rpm 内建的 release 宏：后者被 --define 时
 # 直接报「宏中存在空内容」，构建中断。
@@ -121,6 +121,10 @@ fi
 %{_metainfodir}/io.github.rdpflow.RDPFlow.metainfo.xml
 
 %changelog
+* Sat Nov 28 2026 RDPFlow contributors <yib0601@qq.com> - 0.3.2-1
+- Replace the mutually exclusive scaling switches with a single three-state window fit option.
+- Migrate configurations to version 4, dropping the two legacy scaling booleans.
+
 * Fri Nov 27 2026 RDPFlow contributors <yib0601@qq.com> - 0.3.1-1
 - Default to smart sizing so resizing the window no longer leaves the canvas in the top-left corner.
 - Migrate configurations to version 3, mapping the old default scaling pair onto smart sizing.

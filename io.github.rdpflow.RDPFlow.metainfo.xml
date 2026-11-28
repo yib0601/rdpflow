@@ -37,6 +37,12 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.3.2" date="2026-11-28">
+      <description>
+        <p>The two exclusive scaling switches are now a single window fit option: scale on the client, ask the server to resize, or turn it off.</p>
+        <p>Existing settings are migrated to the new option, keeping whatever the connection effectively used before.</p>
+      </description>
+    </release>
     <release version="0.3.1" date="2026-11-27">
       <description>
         <p>Scaling now defaults to smart sizing, so enlarging the window fills the canvas instead of leaving the session in the top-left corner.</p>

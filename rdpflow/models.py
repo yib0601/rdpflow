@@ -18,6 +18,17 @@ DISPLAY_MODES = ("window", "fullscreen", "monitors")
 CERTIFICATE_MODES = ("tofu", "deny", "ignore")
 AUDIO_MODES = ("redirect", "local", "none")
 
+# 窗口变大时，远程画面怎么跟上来。FreeRDP 把「客户端缩放」和「服务端改分辨率」
+# 当成互斥项，同时下发会直接拒绝启动（实测）：
+#   [ERROR][com.freerdp.client.common.cmdline] - [parse_smart_sizing_options]:
+#   Smart sizing and dynamic resolution are mutually exclusive options
+# 合法组合只有三种，所以这里用一个三态值而不是两个开关：界面上一行下拉，
+# 存值与下发都只认这一个字段，互斥规则无处可写、也就无处可错。
+WINDOW_FIT_CLIENT = "client"
+WINDOW_FIT_SERVER = "server"
+WINDOW_FIT_OFF = "off"
+WINDOW_FITS = (WINDOW_FIT_CLIENT, WINDOW_FIT_SERVER, WINDOW_FIT_OFF)
+
 DEFAULT_AUDIO_MODE = "redirect"
 DEFAULT_CERTIFICATE_MODE = "tofu"
 
@@ -36,8 +47,7 @@ EXPERIENCE_DEFAULTS: dict[str, object] = {
     "resolution": RESOLUTION_AUTO,
     "desktop_scale": DESKTOP_SCALE_AUTO,
     "display_mode": "window",
-    "dynamic_resolution": False,
-    "smart_sizing": True,
+    "window_fit": WINDOW_FIT_CLIENT,
     "clipboard": True,
     "auto_reconnect": True,
 }
@@ -46,15 +56,7 @@ EXPERIENCE_FIELDS: tuple[str, ...] = tuple(EXPERIENCE_DEFAULTS)
 DEFAULT_QUALITY = str(EXPERIENCE_DEFAULTS["quality"])
 DEFAULT_DISPLAY_MODE = str(EXPERIENCE_DEFAULTS["display_mode"])
 DEFAULT_RESOLUTION = str(EXPERIENCE_DEFAULTS["resolution"])
-
-# FreeRDP 拒绝同时下发这两个开关（实测）：
-#   [ERROR][com.freerdp.client.common.cmdline] - [parse_smart_sizing_options]:
-#   Smart sizing and dynamic resolution are mutually exclusive options
-# 因此出厂默认只开智能缩放：动态分辨率要服务端接受 DisplayControl 重设尺寸才兑现，
-# gnome-remote-desktop 这类把分辨率绑在物理显示器上的实现会无视它，窗口一大就留黑边；
-# 智能缩放是客户端侧缩放，不依赖服务端。用户在界面里主动开动态分辨率时，
-# toggle_switch 会联动关掉智能缩放，两者不会同时下发。
-EXCLUSIVE_SWITCHES: tuple[tuple[str, str], ...] = (("dynamic_resolution", "smart_sizing"),)
+DEFAULT_WINDOW_FIT = str(EXPERIENCE_DEFAULTS["window_fit"])
 
 
 def default_experience_options() -> dict[str, object]:
@@ -81,7 +83,9 @@ def apply_experience_options(
         resolved["desktop_scale"] = str(resolved["desktop_scale"])
     if resolved["display_mode"] not in DISPLAY_MODES:
         resolved["display_mode"] = DEFAULT_DISPLAY_MODE
-    for key in ("dynamic_resolution", "smart_sizing", "clipboard", "auto_reconnect"):
+    if resolved["window_fit"] not in WINDOW_FITS:
+        resolved["window_fit"] = DEFAULT_WINDOW_FIT
+    for key in ("clipboard", "auto_reconnect"):
         resolved[key] = bool(resolved[key])
     return resolved
 
@@ -156,49 +160,6 @@ def resolve_canvas(
     return connection.width, connection.height
 
 
-def conflicting_switch(options: dict[str, object], field_name: str) -> str | None:
-    """返回当前让 field_name 无法生效的搭档开关名；没有冲突则返回 None。"""
-    for primary, secondary in EXCLUSIVE_SWITCHES:
-        if field_name == primary and options.get(secondary):
-            return secondary
-        if field_name == secondary and options.get(primary):
-            return primary
-    return None
-
-
-def toggle_switch(options: dict[str, object], field_name: str, value: bool) -> dict[str, object]:
-    """改写一个开关；打开时把互斥的搭档关掉，保证下发的参数组合永远合法。"""
-    result = dict(options)
-    result[field_name] = bool(value)
-    if value:
-        partner = conflicting_switch(result, field_name)
-        if partner:
-            result[partner] = False
-    return result
-
-
-def effective_scaling(options: dict[str, object]) -> str:
-    """实际会下发给 FreeRDP 的缩放方式：smart_sizing / dynamic_resolution / none。
-
-    与 freerdp.build_arguments 的顺序必须一致：智能缩放先胜，因为它只依赖客户端。
-    """
-    if options.get("smart_sizing"):
-        return "smart_sizing"
-    if options.get("dynamic_resolution"):
-        return "dynamic_resolution"
-    return "none"
-
-
-def overridden_switches(options: dict[str, object]) -> tuple[str, ...]:
-    """开着但因互斥而没有实际下发的开关名，用于界面提示与会话日志。"""
-    effective = effective_scaling(options)
-    return tuple(
-        field_name
-        for field_name in ("dynamic_resolution", "smart_sizing")
-        if options.get(field_name) and field_name != effective
-    )
-
-
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -252,8 +213,7 @@ class Connection:
     desktop_scale: str = str(EXPERIENCE_DEFAULTS["desktop_scale"])
     display_mode: str = str(EXPERIENCE_DEFAULTS["display_mode"])
     quality: str = str(EXPERIENCE_DEFAULTS["quality"])
-    dynamic_resolution: bool = bool(EXPERIENCE_DEFAULTS["dynamic_resolution"])
-    smart_sizing: bool = bool(EXPERIENCE_DEFAULTS["smart_sizing"])
+    window_fit: str = DEFAULT_WINDOW_FIT
     fullscreen_bar: bool = True
     clipboard: bool = bool(EXPERIENCE_DEFAULTS["clipboard"])
     audio_mode: str = DEFAULT_AUDIO_MODE
@@ -281,12 +241,7 @@ class Connection:
         self.normalize_experience()
 
     def normalize_experience(self) -> None:
-        """把配置字段收敛到合法值。
-
-        两个缩放开关默认都为开；这里是存值层，不做互斥裁剪 —— 裁剪发生在两个地方：
-        用户在界面上打开其一时自动关掉另一个（toggle_switch），
-        以及下发参数时动态分辨率优先（freerdp.build_arguments）。
-        """
+        """把配置字段收敛到合法值（非法值回落到出厂默认）。"""
         resolved = apply_experience_options(self.experience_options())
         for key, value in resolved.items():
             setattr(self, key, value)
@@ -294,32 +249,21 @@ class Connection:
     def experience_options(self) -> dict[str, object]:
         return {key: getattr(self, key) for key in EXPERIENCE_FIELDS}
 
-    def set_experience_option(self, field_name: str, value: object) -> str | None:
-        """改一个配置项；互斥开关在这里统一处理，调用方不必自己配对。
+    def set_experience_option(self, field_name: str, value: object) -> None:
+        """改一个配置项并洗成合法值。
 
-        只有开关字段按布尔处理，其余（画面预设 / 分辨率 / 显示方式）原样写入 ——
-        统一 bool() 会把 "2560x1440" 变成 True。
-        返回值是本次被联动关掉的搭档名，供界面提示。
+        只有开关字段按布尔处理，其余（画面预设 / 分辨率 / 显示方式 / 窗口适配）
+        原样写入 —— 统一 bool() 会把 "2560x1440" 变成 True。
         """
         if field_name not in EXPERIENCE_DEFAULTS:
             raise KeyError(field_name)
         options = self.experience_options()
         if isinstance(EXPERIENCE_DEFAULTS[field_name], bool):
-            updated = toggle_switch(options, field_name, bool(value))
+            options[field_name] = bool(value)
         else:
-            updated = {**options, field_name: value}
-        updated = apply_experience_options(updated)
-        disabled = next(
-            (
-                key
-                for key, previous in options.items()
-                if previous and not updated.get(key) and key != field_name
-            ),
-            None,
-        )
-        for key, item in updated.items():
+            options[field_name] = value
+        for key, item in apply_experience_options(options).items():
             setattr(self, key, item)
-        return disabled
 
     def apply_defaults(self, defaults: dict[str, object] | None) -> Connection:
         """套用一份默认配置，覆盖连接上现有的同名项。"""

@@ -9,11 +9,11 @@ from pathlib import Path
 from unittest.mock import Mock
 
 from rdpflow.freerdp import FreeRDPError, FreeRDPLauncher, SessionHandle, build_arguments
-from rdpflow.models import Connection
+from rdpflow.models import WINDOW_FIT_CLIENT, WINDOW_FIT_OFF, WINDOW_FIT_SERVER, Connection
 
 
 class ArgumentTests(unittest.TestCase):
-    def test_default_experience_options(self):
+    def test_default_window_fit_scales_on_the_client(self):
         """出厂默认下发智能缩放。
 
         动态分辨率要服务端接受 DisplayControl 重设尺寸才兑现，
@@ -31,21 +31,21 @@ class ArgumentTests(unittest.TestCase):
         self.assertIn("+clipboard", arguments)
         self.assertIn("/cert:tofu", arguments)
 
-    def test_dynamic_resolution_is_used_when_smart_sizing_is_off(self):
-        profile = Connection(host="192.0.2.10", dynamic_resolution=True, smart_sizing=False)
+    def test_server_fit_asks_the_server_for_a_new_resolution(self):
+        profile = Connection(host="192.0.2.10", window_fit=WINDOW_FIT_SERVER)
         arguments = build_arguments(profile, None)
         self.assertIn("+dynamic-resolution", arguments)
         self.assertNotIn("/smart-sizing:on", arguments)
 
-    def test_smart_sizing_wins_when_both_are_enabled(self):
-        """两者都开时下发智能缩放：与 models.effective_scaling 保持同一答案。"""
-        profile = Connection(host="192.0.2.10", dynamic_resolution=True, smart_sizing=True)
-        arguments = build_arguments(profile, None)
-        self.assertIn("/smart-sizing:on", arguments)
-        self.assertNotIn("+dynamic-resolution", arguments)
+    def test_window_fit_never_sends_both_switches(self):
+        """三态值让「同时下发」在结构上不可能出现，这里钉成回归项。"""
+        for value in (WINDOW_FIT_CLIENT, WINDOW_FIT_SERVER, WINDOW_FIT_OFF):
+            arguments = build_arguments(Connection(host="192.0.2.10", window_fit=value), None)
+            sent = [item for item in arguments if "sizing" in item or "dynamic-resolution" in item]
+            self.assertLessEqual(len(sent), 1, f"{value} 下发了多个缩放开关：{sent}")
 
-    def test_no_scaling_switch_when_both_are_off(self):
-        profile = Connection(host="192.0.2.10", dynamic_resolution=False, smart_sizing=False)
+    def test_off_window_fit_sends_no_scaling_switch(self):
+        profile = Connection(host="192.0.2.10", window_fit=WINDOW_FIT_OFF)
         arguments = build_arguments(profile, None)
         self.assertNotIn("/smart-sizing:on", arguments)
         self.assertNotIn("+dynamic-resolution", arguments)

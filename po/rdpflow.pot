@@ -7,23 +7,23 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-#: rdpflow/ui.py:1032
+#: rdpflow/ui.py:1029
 msgid "FreeRDP 退出码 {code}，请查看日志末尾。"
 msgstr ""
 
-#: rdpflow/ui.py:546
+#: rdpflow/ui.py:547
 msgid "FreeRDP：{version}"
 msgstr ""
 
-#: rdpflow/models.py:219
+#: rdpflow/models.py:180
 msgid "IPv6 地址请使用 [地址]:端口 的格式"
 msgstr ""
 
-#: rdpflow/ui.py:216
+#: rdpflow/ui.py:217
 msgid "Linux 远程桌面"
 msgstr ""
 
-#: rdpflow/dialogs.py:522
+#: rdpflow/dialogs.py:525
 msgid "RD 网关（可选）"
 msgstr ""
 
@@ -31,221 +31,217 @@ msgstr ""
 msgid "RDPFlow：{id}"
 msgstr ""
 
-#: rdpflow/ui.py:1062
+#: rdpflow/ui.py:1059
 msgid "{name} 副本"
 msgstr ""
 
-#: rdpflow/dialogs.py:602
-msgid "{name}当前未生效：FreeRDP 不接受它与{partner}同时下发。"
-msgstr ""
-
-#: rdpflow/ui.py:977
-msgid "{name}未下发：与{partner}互斥（FreeRDP 会拒绝同时使用）"
-msgstr ""
-
-#: rdpflow/ui.py:1071
+#: rdpflow/ui.py:1068
 msgid "「{name}」及其设置会被删除。"
 msgstr ""
 
-#: rdpflow/ui.py:605
+#: rdpflow/ui.py:606
 msgid "上次连接失败，可以查看日志或尝试兼容模式。"
 msgstr ""
 
-#: rdpflow/ui.py:136
+#: rdpflow/ui.py:137
 msgid "不可用"
 msgstr ""
 
-#: rdpflow/ui.py:540
+#: rdpflow/ui.py:541
 msgid "不可用（{reason}）；「记住密码」已关闭，每次连接手动输入密码"
 msgstr ""
 
-#: rdpflow/store.py:88
+#: rdpflow/store.py:134
 msgid "不支持的配置文件版本"
 msgstr ""
 
-#: rdpflow/dialogs.py:52
+#: rdpflow/dialogs.py:53
 msgid "严格校验"
 msgstr ""
 
-#: rdpflow/dialogs.py:491
+#: rdpflow/dialogs.py:501
 msgid "之后新建的连接都用这套配置"
 msgstr ""
 
-#: rdpflow/ui.py:757
+#: rdpflow/ui.py:765
 msgid "以兼容模式重试"
 msgstr ""
 
-#: rdpflow/ui.py:398
+#: rdpflow/ui.py:399
 msgid "以兼容模式重试当前连接"
 msgstr ""
 
-#: rdpflow/ui.py:986
+#: rdpflow/ui.py:983
 msgid "会话已启动，但密码没记住：{error}"
 msgstr ""
 
-#: rdpflow/ui.py:1029
+#: rdpflow/ui.py:1026
 msgid "会话结束，退出码：{code}"
 msgstr ""
 
-#: rdpflow/ui.py:748
+#: rdpflow/ui.py:756
 msgid "会话诊断"
 msgstr ""
 
-#: rdpflow/ui.py:463
-#: rdpflow/ui.py:636
+#: rdpflow/ui.py:464
+#: rdpflow/ui.py:637
 msgid "会话运行中"
 msgstr ""
 
-#: rdpflow/dialogs.py:375
+#: rdpflow/dialogs.py:392
 msgid "保存"
 msgstr ""
 
-#: rdpflow/dialogs.py:250
+#: rdpflow/dialogs.py:267
 msgid "保存为常用连接"
 msgstr ""
 
-#: rdpflow/dialogs.py:490
+#: rdpflow/dialogs.py:500
 msgid "保存为新的全局默认"
 msgstr ""
 
-#: rdpflow/ui.py:287
+#: rdpflow/ui.py:288
 msgid "保存常用连接，选择合适的画面预设；出问题时，直接看到失败原因。"
 msgstr ""
 
-#: rdpflow/ui.py:845
+#: rdpflow/ui.py:847
 msgid "保存连接失败：{error}"
 msgstr ""
 
-#: rdpflow/ui.py:665
+#: rdpflow/ui.py:666
 msgid "修改后自动保存。"
 msgstr ""
 
-#: rdpflow/dialogs.py:40
-#: rdpflow/dialogs.py:465
+#: rdpflow/dialogs.py:41
+#: rdpflow/dialogs.py:475
 msgid "共享剪贴板"
 msgstr ""
 
-#: rdpflow/models.py:380
+#: rdpflow/models.py:324
 msgid "共享名称只能包含字母、数字、下划线和连字符"
 msgstr ""
 
-#: rdpflow/freerdp.py:157
+#: rdpflow/freerdp.py:158
 msgid "共享目录不存在：{path}"
 msgstr ""
 
-#: rdpflow/dialogs.py:508
+#: rdpflow/dialogs.py:511
 msgid "共享目录（可选）"
 msgstr ""
 
-#: rdpflow/ui.py:174
+#: rdpflow/ui.py:175
 msgid "关于 RDPFlow"
 msgstr ""
 
-#: rdpflow/dialogs.py:78
+#: rdpflow/dialogs.py:69
+#: rdpflow/dialogs.py:95
 msgid "关闭"
 msgstr ""
 
-#: rdpflow/ui.py:758
+#: rdpflow/ui.py:766
 msgid "关闭 RDP8 图形管线并使用软件渲染"
 msgstr ""
 
-#: rdpflow/dialogs.py:53
+#: rdpflow/dialogs.py:54
 msgid "关闭音频"
 msgstr ""
 
-#: rdpflow/dialogs.py:49
+#: rdpflow/dialogs.py:50
 msgid "兼容模式"
 msgstr ""
 
-#: rdpflow/ui.py:606
+#: rdpflow/ui.py:607
 msgid "兼容模式重试"
 msgstr ""
 
-#: rdpflow/ui.py:1080
+#: rdpflow/ui.py:1077
 msgid "删除"
 msgstr ""
 
-#: rdpflow/ui.py:1076
+#: rdpflow/ui.py:1073
 msgid "删除这个连接？"
 msgstr ""
 
-#: rdpflow/ui.py:742
+#: rdpflow/ui.py:750
 msgid "删除连接"
 msgstr ""
 
-#: rdpflow/dialogs.py:38
-#: rdpflow/dialogs.py:455
-msgid "动态分辨率"
-msgstr ""
-
-#: rdpflow/dialogs.py:51
+#: rdpflow/dialogs.py:52
 msgid "单屏全屏"
 msgstr ""
 
-#: rdpflow/dialogs.py:372
-#: rdpflow/ui.py:1079
+#: rdpflow/dialogs.py:389
+#: rdpflow/ui.py:1076
 msgid "取消"
 msgstr ""
 
-#: rdpflow/dialogs.py:415
+#: rdpflow/dialogs.py:432
 msgid "可以先留空，连接时再输入"
 msgstr ""
 
-#: rdpflow/ui.py:547
+#: rdpflow/ui.py:548
 msgid "可执行文件：{path}"
 msgstr ""
 
-#: rdpflow/ui.py:537
+#: rdpflow/ui.py:538
 msgid "可用（「记住密码」正常）"
 msgstr ""
 
-#: rdpflow/dialogs.py:395
+#: rdpflow/dialogs.py:412
 msgid "名称"
 msgstr ""
 
-#: rdpflow/ui.py:963
+#: rdpflow/ui.py:965
 msgid "启动 FreeRDP：{path}"
 msgstr ""
 
-#: rdpflow/ui.py:954
+#: rdpflow/ui.py:956
 msgid "启动失败：{error}"
 msgstr ""
 
-#: rdpflow/dialogs.py:53
+#: rdpflow/dialogs.py:54
 msgid "在本机播放"
 msgstr ""
 
-#: rdpflow/dialogs.py:53
+#: rdpflow/dialogs.py:54
 msgid "在远程播放"
 msgstr ""
 
-#: rdpflow/dialogs.py:409
+#: rdpflow/dialogs.py:426
 msgid "域（可选）"
 msgstr ""
 
-#: rdpflow/ui.py:378
+#: rdpflow/ui.py:379
 msgid "复制日志"
 msgstr ""
 
-#: rdpflow/ui.py:366
+#: rdpflow/ui.py:367
 msgid "复制环境信息"
 msgstr ""
 
-#: rdpflow/ui.py:751
+#: rdpflow/ui.py:759
 msgid "复制诊断日志"
 msgstr ""
 
-#: rdpflow/ui.py:737
+#: rdpflow/ui.py:745
 msgid "复制连接"
 msgstr ""
 
-#: rdpflow/dialogs.py:246
-#: rdpflow/dialogs.py:333
-#: rdpflow/dialogs.py:413
+#: rdpflow/dialogs.py:67
+msgid "客户端缩放（推荐）"
+msgstr ""
+
+#: rdpflow/dialogs.py:74
+msgid "客户端缩放：画面缩放到窗口，不挑服务端；服务端改分辨率：远程分辨率真的跟着窗口变，但服务端不支持时窗口变大会留黑边；关闭：画面 1:1，不缩放。"
+msgstr ""
+
+#: rdpflow/dialogs.py:263
+#: rdpflow/dialogs.py:350
+#: rdpflow/dialogs.py:430
 msgid "密码"
 msgstr ""
 
-#: rdpflow/dialogs.py:324
+#: rdpflow/dialogs.py:341
 msgid "密码不会写入配置文件或进程命令行。"
 msgstr ""
 
@@ -257,85 +253,77 @@ msgstr ""
 msgid "密码库拒绝了这次写入，密码没有保存"
 msgstr ""
 
-#: rdpflow/ui.py:551
+#: rdpflow/ui.py:552
 msgid "密码库：{state}"
 msgstr ""
 
-#: rdpflow/ui.py:194
+#: rdpflow/ui.py:195
 msgid "工作台"
 msgstr ""
 
-#: rdpflow/ui.py:152
-msgid "已升级老配置：分辨率改为「自动」，缩放改为「智能缩放」"
+#: rdpflow/ui.py:153
+msgid "已升级老配置：分辨率改为「自动」，缩放合并为「窗口适配」"
 msgstr ""
 
-#: rdpflow/ui.py:1113
+#: rdpflow/ui.py:1110
 msgid "已复制到剪贴板"
 msgstr ""
 
-#: rdpflow/ui.py:640
+#: rdpflow/ui.py:641
 msgid "已就绪"
 msgstr ""
 
-#: rdpflow/ui.py:834
+#: rdpflow/ui.py:836
 msgid "已恢复默认配置项"
 msgstr ""
 
-#: rdpflow/ui.py:839
+#: rdpflow/ui.py:841
 msgid "已更新全局默认：之后新建的连接都用这套配置"
 msgstr ""
 
-#: rdpflow/ui.py:825
-msgid "已联动关闭{name}：FreeRDP 不接受动态分辨率与智能缩放同时下发"
-msgstr ""
-
-#: rdpflow/dialogs.py:590
-msgid "已联动关闭{name}：FreeRDP 不接受动态分辨率与智能缩放同时下发，两者只能留一个。"
-msgstr ""
-
-#: rdpflow/ui.py:1073
+#: rdpflow/ui.py:1070
 msgid "已记住的密码也会从「密码和密钥」里一起删掉，不可恢复。"
 msgstr ""
 
-#: rdpflow/dialogs.py:392
+#: rdpflow/dialogs.py:409
 msgid "常用信息保存后，下次只需一次点击。"
 msgstr ""
 
-#: rdpflow/ui.py:311
+#: rdpflow/ui.py:312
 msgid "常用连接"
 msgstr ""
 
-#: rdpflow/dialogs.py:46
+#: rdpflow/dialogs.py:47
 msgid "平衡（推荐）"
 msgstr ""
 
-#: rdpflow/dialogs.py:78
+#: rdpflow/dialogs.py:95
 msgid "开启"
 msgstr ""
 
-#: rdpflow/ui.py:302
+#: rdpflow/ui.py:303
 msgid "开始连接"
 msgstr ""
 
-#: rdpflow/dialogs.py:215
-#: rdpflow/ui.py:164
-#: rdpflow/ui.py:245
+#: rdpflow/dialogs.py:232
+#: rdpflow/ui.py:165
+#: rdpflow/ui.py:246
 msgid "快速连接"
 msgstr ""
 
-#: rdpflow/dialogs.py:52
+#: rdpflow/dialogs.py:53
 msgid "忽略校验（不推荐）"
 msgstr ""
 
-#: rdpflow/dialogs.py:479
+#: rdpflow/dialogs.py:489
 msgid "恢复全局默认"
 msgstr ""
 
-#: rdpflow/ui.py:724
+#: rdpflow/ui.py:732
 msgid "恢复默认"
 msgstr ""
 
-#: rdpflow/dialogs.py:51
+#: rdpflow/dialogs.py:52
 msgid "所有显示器"
 msgstr ""
 
@@ -343,58 +331,58 @@ msgstr ""
 msgid "找不到 RDPFLOW_FREERDP 指定的程序：{path}"
 msgstr ""
 
-#: rdpflow/dialogs.py:481
+#: rdpflow/dialogs.py:491
 msgid "把上面 {count} 项还原成当前默认值，其余字段保持不变"
 msgstr ""
 
-#: rdpflow/ui.py:725
+#: rdpflow/ui.py:733
 msgid "把这一组配置项还原成全局默认值"
 msgstr ""
 
-#: rdpflow/ui.py:225
+#: rdpflow/ui.py:226
 msgid "搜索连接…"
 msgstr ""
 
-#: rdpflow/dialogs.py:433
+#: rdpflow/dialogs.py:450
 msgid "改完可「恢复全局默认」，或把当前配置存成新的默认。"
 msgstr ""
 
-#: rdpflow/ui.py:647
+#: rdpflow/ui.py:648
 msgid "断开"
 msgstr ""
 
-#: rdpflow/dialogs.py:468
-#: rdpflow/ui.py:713
+#: rdpflow/dialogs.py:478
+#: rdpflow/ui.py:721
 msgid "断开后自动重试，最多 5 次"
 msgstr ""
 
-#: rdpflow/dialogs.py:41
-#: rdpflow/dialogs.py:468
+#: rdpflow/dialogs.py:42
+#: rdpflow/dialogs.py:478
 msgid "断线自动重连"
 msgstr ""
 
-#: rdpflow/ui.py:240
+#: rdpflow/ui.py:241
 msgid "新建"
 msgstr ""
 
-#: rdpflow/ui.py:490
+#: rdpflow/ui.py:491
 msgid "新建一个连接，之后就能从这里一键进入。"
 msgstr ""
 
-#: rdpflow/dialogs.py:371
+#: rdpflow/dialogs.py:388
 msgid "新建连接"
 msgstr ""
 
-#: rdpflow/freerdp.py:272
+#: rdpflow/freerdp.py:273
 msgid "无法传递连接参数：{error}"
 msgstr ""
 
-#: rdpflow/freerdp.py:294
+#: rdpflow/freerdp.py:295
 msgid "无法写入连接参数文件：{error}"
 msgstr ""
 
-#: rdpflow/freerdp.py:265
-#: rdpflow/freerdp.py:311
+#: rdpflow/freerdp.py:266
+#: rdpflow/freerdp.py:312
 msgid "无法启动 FreeRDP：{error}"
 msgstr ""
 
@@ -410,42 +398,41 @@ msgstr ""
 msgid "无法识别的选项：{options}\n\n{usage}"
 msgstr ""
 
-#: rdpflow/store.py:128
+#: rdpflow/store.py:175
 msgid "无法读取连接配置，已尽量备份原文件：{error}"
 msgstr ""
 
-#: rdpflow/ui.py:548
+#: rdpflow/ui.py:549
 msgid "显示后端：{backend}"
 msgstr ""
 
-#: rdpflow/dialogs.py:37
-#: rdpflow/dialogs.py:450
-#: rdpflow/ui.py:701
+#: rdpflow/dialogs.py:39
+#: rdpflow/dialogs.py:467
+#: rdpflow/ui.py:702
 msgid "显示方式"
 msgstr ""
 
-#: rdpflow/ui.py:749
+#: rdpflow/ui.py:757
 msgid "显示最近一次 FreeRDP 会话输出"
 msgstr ""
 
-#: rdpflow/dialogs.py:474
+#: rdpflow/dialogs.py:484
 msgid "显示远程壁纸"
 msgstr ""
 
-#: rdpflow/dialogs.py:39
-#: rdpflow/dialogs.py:461
-msgid "智能缩放"
-msgstr ""
-
-#: rdpflow/ui.py:374
+#: rdpflow/ui.py:375
 msgid "最近会话日志"
 msgstr ""
 
-#: rdpflow/models.py:274
+#: rdpflow/dialogs.py:68
+msgid "服务端改分辨率"
+msgstr ""
+
+#: rdpflow/models.py:234
 msgid "未命名连接"
 msgstr ""
 
-#: rdpflow/ui.py:135
+#: rdpflow/ui.py:136
 msgid "未找到"
 msgstr ""
 
@@ -453,39 +440,39 @@ msgstr ""
 msgid "未找到 FreeRDP，{hint}"
 msgstr ""
 
-#: rdpflow/ui.py:539
+#: rdpflow/ui.py:540
 msgid "未找到 libsecret"
 msgstr ""
 
-#: rdpflow/ui.py:549
+#: rdpflow/ui.py:550
 msgid "未知"
 msgstr ""
 
-#: rdpflow/dialogs.py:505
+#: rdpflow/dialogs.py:508
 msgid "本地资源"
 msgstr ""
 
-#: rdpflow/ui.py:1055
+#: rdpflow/ui.py:1052
 msgid "正在以兼容模式重试"
 msgstr ""
 
-#: rdpflow/ui.py:1047
+#: rdpflow/ui.py:1044
 msgid "正在断开连接"
 msgstr ""
 
-#: rdpflow/ui.py:1045
+#: rdpflow/ui.py:1042
 msgid "正在断开连接；若进程未及时退出，将强制结束。"
 msgstr ""
 
-#: rdpflow/ui.py:1110
+#: rdpflow/ui.py:1107
 msgid "没有可复制的内容"
 msgstr ""
 
-#: rdpflow/dialogs.py:47
+#: rdpflow/dialogs.py:48
 msgid "流畅优先"
 msgstr ""
 
-#: rdpflow/dialogs.py:48
+#: rdpflow/dialogs.py:49
 msgid "清晰优先"
 msgstr ""
 
@@ -493,11 +480,11 @@ msgstr ""
 msgid "版本未知"
 msgstr ""
 
-#: rdpflow/dialogs.py:405
+#: rdpflow/dialogs.py:422
 msgid "用户名"
 msgstr ""
 
-#: rdpflow/dialogs.py:242
+#: rdpflow/dialogs.py:259
 msgid "用户名（可选）"
 msgstr ""
 
@@ -505,125 +492,130 @@ msgstr ""
 msgid "用法：rdpflow [选项] [rdp://主机:端口]\n\n  --version              打印版本号后退出\n  --self-check           检查运行环境（解释器 / GTK / 资源 / 配置目录 / FreeRDP）并打印 JSON\n  --json-out PATH        把自检结果同时写进 PATH（Windows 无控制台启动时用得上）\n  -h, --help             显示本帮助\n"
 msgstr ""
 
-#: rdpflow/dialogs.py:34
-#: rdpflow/dialogs.py:438
-#: rdpflow/ui.py:675
+#: rdpflow/dialogs.py:36
+#: rdpflow/dialogs.py:455
+#: rdpflow/ui.py:676
 msgid "画面预设"
 msgstr ""
 
-#: rdpflow/dialogs.py:415
+#: rdpflow/dialogs.py:432
 msgid "留空表示不改动已记住的密码"
 msgstr ""
 
-#: rdpflow/ui.py:965
+#: rdpflow/ui.py:967
 msgid "目标：{endpoint}；画质：{quality}；画布：{canvas}"
 msgstr ""
 
-#: rdpflow/dialogs.py:51
+#: rdpflow/dialogs.py:52
 msgid "窗口"
 msgstr ""
 
-#: rdpflow/dialogs.py:35
-#: rdpflow/dialogs.py:442
-#: rdpflow/ui.py:683
+#: rdpflow/dialogs.py:37
+#: rdpflow/dialogs.py:459
+#: rdpflow/ui.py:684
 msgid "窗口分辨率"
 msgstr ""
 
-#: rdpflow/dialogs.py:402
+#: rdpflow/dialogs.py:40
+#: rdpflow/dialogs.py:471
+#: rdpflow/ui.py:710
+msgid "窗口适配"
+msgstr ""
+
+#: rdpflow/ui.py:977
+msgid "窗口适配：{fit}"
+msgstr ""
+
+#: rdpflow/dialogs.py:419
 msgid "端口"
 msgstr ""
 
-#: rdpflow/models.py:233
+#: rdpflow/models.py:194
 msgid "端口必须在 1–65535 之间"
 msgstr ""
 
-#: rdpflow/models.py:228
+#: rdpflow/models.py:189
 msgid "端口必须是数字"
 msgstr ""
 
-#: rdpflow/ui.py:316
+#: rdpflow/ui.py:317
 msgid "管理连接"
 msgstr ""
 
-#: rdpflow/ui.py:628
+#: rdpflow/ui.py:629
 msgid "经网关 {host}"
 msgstr ""
 
-#: rdpflow/ui.py:733
+#: rdpflow/ui.py:741
 msgid "编辑完整配置"
 msgstr ""
 
-#: rdpflow/dialogs.py:371
+#: rdpflow/dialogs.py:388
 msgid "编辑连接"
-msgstr ""
-
-#: rdpflow/dialogs.py:462
-#: rdpflow/ui.py:711
-msgid "缩放画面适配窗口，不挑服务端；与动态分辨率互斥，同时开启时以它生效"
 msgstr ""
 
 #: rdpflow/__main__.py:50
 msgid "缺少 PyGObject 或 GTK4/libadwaita 的 typelib"
 msgstr ""
 
-#: rdpflow/dialogs.py:526
+#: rdpflow/dialogs.py:529
 msgid "网关地址"
 msgstr ""
 
-#: rdpflow/dialogs.py:536
+#: rdpflow/dialogs.py:539
 msgid "网关域"
 msgstr ""
 
-#: rdpflow/dialogs.py:532
+#: rdpflow/dialogs.py:535
 msgid "网关用户名"
 msgstr ""
 
-#: rdpflow/dialogs.py:529
+#: rdpflow/dialogs.py:532
 msgid "网关端口"
 msgstr ""
 
-#: rdpflow/models.py:377
+#: rdpflow/models.py:321
 msgid "网关端口必须在 1–65535 之间"
 msgstr ""
 
-#: rdpflow/models.py:365
+#: rdpflow/models.py:309
 msgid "自动（{width}×{height}）"
 msgstr ""
 
-#: rdpflow/dialogs.py:54
+#: rdpflow/dialogs.py:55
 msgid "自动（跟随本机屏幕）"
 msgstr ""
 
-#: rdpflow/dialogs.py:56
+#: rdpflow/dialogs.py:57
 msgid "自动（跟随本机）"
 msgstr ""
 
-#: rdpflow/ui.py:170
+#: rdpflow/ui.py:171
 msgid "菜单"
 msgstr ""
 
-#: rdpflow/dialogs.py:419
+#: rdpflow/dialogs.py:436
 msgid "记住密码"
 msgstr ""
 
-#: rdpflow/dialogs.py:541
+#: rdpflow/dialogs.py:544
 msgid "证书"
 msgstr ""
 
-#: rdpflow/dialogs.py:544
+#: rdpflow/dialogs.py:547
 msgid "证书校验"
 msgstr ""
 
-#: rdpflow/ui.py:173
-#: rdpflow/ui.py:349
+#: rdpflow/ui.py:174
+#: rdpflow/ui.py:350
 msgid "诊断信息"
 msgstr ""
 
-#: rdpflow/models.py:373
+#: rdpflow/models.py:317
 msgid "请使用已经解析的主机地址和端口"
 msgstr ""
 
-#: rdpflow/ui.py:1052
+#: rdpflow/ui.py:1049
 msgid "请先选择一个连接"
 msgstr ""
 
@@ -635,41 +627,36 @@ msgstr ""
 msgid "请把 wfreerdp.exe 放进 PATH，或用 RDPFLOW_FREERDP 指定它的完整路径"
 msgstr ""
 
-#: rdpflow/dialogs.py:456
-#: rdpflow/ui.py:710
-msgid "请求服务端跟随窗口改分辨率；服务端不支持时窗口变大会留黑边"
-msgstr ""
-
-#: rdpflow/models.py:212
+#: rdpflow/models.py:173
 msgid "请输入远程主机地址"
 msgstr ""
 
-#: rdpflow/dialogs.py:225
+#: rdpflow/dialogs.py:242
 msgid "输入主机即可开始，也可以使用 user@host 的格式。"
 msgstr ""
 
-#: rdpflow/dialogs.py:312
+#: rdpflow/dialogs.py:329
 msgid "输入登录密码"
 msgstr ""
 
-#: rdpflow/ui.py:359
+#: rdpflow/ui.py:360
 msgid "运行环境"
 msgstr ""
 
-#: rdpflow/ui.py:342
-#: rdpflow/ui.py:596
+#: rdpflow/ui.py:343
+#: rdpflow/ui.py:597
 msgid "返回首页"
 msgstr ""
 
-#: rdpflow/ui.py:435
+#: rdpflow/ui.py:436
 msgid "还没有匹配的连接"
 msgstr ""
 
-#: rdpflow/ui.py:488
+#: rdpflow/ui.py:489
 msgid "还没有常用连接"
 msgstr ""
 
-#: rdpflow/ui.py:936
+#: rdpflow/ui.py:938
 msgid "这个连接已经有一个会话在运行"
 msgstr ""
 
@@ -677,127 +664,127 @@ msgstr ""
 msgid "这台机器没有可用的密码库（需要已登录的桌面会话与 libsecret）"
 msgstr ""
 
-#: rdpflow/dialogs.py:83
+#: rdpflow/dialogs.py:100
 msgid "这台机器没有可用的密码库，密码只能每次手动输入。"
 msgstr ""
 
-#: rdpflow/models.py:231
+#: rdpflow/models.py:192
 msgid "远程主机地址格式不正确"
 msgstr ""
 
-#: rdpflow/dialogs.py:399
+#: rdpflow/dialogs.py:416
 msgid "远程主机（IP:端口 / IPv6）"
 msgstr ""
 
-#: rdpflow/dialogs.py:237
+#: rdpflow/dialogs.py:254
 msgid "远程主机（IP:端口）"
 msgstr ""
 
-#: rdpflow/dialogs.py:517
+#: rdpflow/dialogs.py:520
 msgid "远程共享名称"
 msgstr ""
 
-#: rdpflow/ui.py:163
+#: rdpflow/ui.py:164
 msgid "远程桌面工作台"
 msgstr ""
 
-#: rdpflow/dialogs.py:36
-#: rdpflow/dialogs.py:446
-#: rdpflow/ui.py:692
+#: rdpflow/dialogs.py:38
+#: rdpflow/dialogs.py:463
+#: rdpflow/ui.py:693
 msgid "远程桌面缩放"
 msgstr ""
 
-#: rdpflow/ui.py:973
+#: rdpflow/ui.py:975
 msgid "远程桌面缩放：{scale}%"
 msgstr ""
 
-#: rdpflow/ui.py:282
+#: rdpflow/ui.py:283
 msgid "远程桌面，少一点折腾。"
 msgstr ""
 
-#: rdpflow/dialogs.py:261
-#: rdpflow/dialogs.py:337
-#: rdpflow/dialogs.py:391
-#: rdpflow/ui.py:191
-#: rdpflow/ui.py:467
-#: rdpflow/ui.py:651
+#: rdpflow/dialogs.py:278
+#: rdpflow/dialogs.py:354
+#: rdpflow/dialogs.py:408
+#: rdpflow/ui.py:192
+#: rdpflow/ui.py:468
+#: rdpflow/ui.py:652
 msgid "连接"
 msgstr ""
 
-#: rdpflow/store.py:111
+#: rdpflow/store.py:158
 msgid "连接列表格式不正确"
 msgstr ""
 
-#: rdpflow/dialogs.py:321
+#: rdpflow/dialogs.py:338
 msgid "连接到 {endpoint}"
 msgstr ""
 
-#: rdpflow/freerdp.py:179
+#: rdpflow/freerdp.py:180
 msgid "连接参数不能包含换行符"
 msgstr ""
 
-#: rdpflow/ui.py:638
+#: rdpflow/ui.py:639
 msgid "连接失败"
 msgstr ""
 
-#: rdpflow/ui.py:351
+#: rdpflow/ui.py:352
 msgid "连接失败时，先确认 FreeRDP、显示后端和目标主机状态。"
 msgstr ""
 
-#: rdpflow/ui.py:1033
+#: rdpflow/ui.py:1030
 msgid "连接失败，诊断面板已记录原因"
 msgstr ""
 
-#: rdpflow/ui.py:916
+#: rdpflow/ui.py:918
 msgid "连接已保存"
 msgstr ""
 
-#: rdpflow/ui.py:909
+#: rdpflow/ui.py:911
 msgid "连接已保存，但密码没记住：{error}"
 msgstr ""
 
-#: rdpflow/ui.py:1095
+#: rdpflow/ui.py:1092
 msgid "连接已删除"
 msgstr ""
 
-#: rdpflow/dialogs.py:431
-#: rdpflow/ui.py:663
+#: rdpflow/dialogs.py:448
+#: rdpflow/ui.py:664
 msgid "连接配置"
 msgstr ""
 
-#: rdpflow/dialogs.py:523
+#: rdpflow/dialogs.py:526
 msgid "适用于 Remote Desktop Gateway 或堡垒机"
 msgstr ""
 
-#: rdpflow/dialogs.py:511
+#: rdpflow/dialogs.py:514
 msgid "选择目录"
 msgstr ""
 
-#: rdpflow/dialogs.py:557
+#: rdpflow/dialogs.py:560
 msgid "选择要共享的目录"
 msgstr ""
 
-#: rdpflow/store.py:107
+#: rdpflow/store.py:154
 msgid "配置文件结构不正确"
 msgstr ""
 
-#: rdpflow/ui.py:552
+#: rdpflow/ui.py:553
 msgid "配置文件：{path}"
 msgstr ""
 
-#: rdpflow/ui.py:1124
+#: rdpflow/ui.py:1121
 msgid "面向 Linux 日常远程 Windows 的现代连接工具。"
 msgstr ""
 
-#: rdpflow/dialogs.py:471
+#: rdpflow/dialogs.py:481
 msgid "音频"
 msgstr ""
 
-#: rdpflow/dialogs.py:52
+#: rdpflow/dialogs.py:53
 msgid "首次信任（推荐）"
 msgstr ""
 
-#: rdpflow/ui.py:544
+#: rdpflow/ui.py:545
 msgid "；FreeRDP 错误：{error}"
 msgstr ""
 
